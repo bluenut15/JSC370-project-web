@@ -1,0 +1,435 @@
+---
+title: "Midterm Report"
+author: "Cynthia Luo"
+output: html_document
+---
+\
+Link to github repository for the project:
+
+<https://github.com/bluenut15/JSC370-project.git>
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r libraries, include = FALSE}
+library(httr)
+library(jsonlite)
+library(readr)
+library(dplyr)
+library(tidyr)
+library(tidyverse)
+library(tidytext)
+library(ggplot2)
+library(ggcorrplot)
+library(glm2)
+library(purrr)
+library(patchwork)
+library(data.table)
+library(knitr)
+library(kableExtra)
+library(gridExtra)
+
+```
+
+```{r api-indicators, include = FALSE}
+# Define the API endpoint for retrieving indicators
+url <- "https://ghoapi.azureedge.net/api/Indicator"
+
+# Send GET request to the API
+response <- GET(url)
+
+# Check if the request was successful
+if (status_code(response) == 200) {
+  # Parse the JSON response
+  data <- fromJSON(content(response, as = "text"))
+  
+  # Extract the relevant information (list of indicators)
+  indicators <- data$value
+} else {
+  print("Failed to retrieve data. Check the API URL or connection.")
+}
+
+```
+
+```{r api-data_retrieval, include = FALSE}
+# Function to fetch data for a given indicator
+fetch_indicator_data <- function(indicator_code) {
+  url <- paste0("https://ghoapi.azureedge.net/api/", indicator_code)
+  
+  # Send GET request
+  response <- GET(url)
+  
+  # Check if request was successful
+  if (status_code(response) == 200) {
+    # Parse JSON response
+    data <- fromJSON(content(response, as = "text"))
+    
+    # Extract relevant data
+    return(data$value)
+  } else {
+    print(paste("Failed to retrieve data for indicator:", indicator_code))
+    return(NULL)
+  }
+}
+
+# Retrieve data for both indicators
+data_suicide_raw <- fetch_indicator_data("SDGSUICIDE") # Crude suicide rates (per 100 000 population)
+data_alcohol_raw <- fetch_indicator_data("SA_0000001476") # Alcohol expenditure as a percent of total household expenditure
+
+```
+
+```{r api-data-cleanning, include = FALSE}
+# ---- Cleaning Suicide Data ----
+if (!is.null(data_suicide_raw)) {
+  data_suicide <- data_suicide_raw %>%
+    filter(Dim1 == "SEX_BTSX" & Dim2 == "AGEGROUP_YEARSALL") %>% # Both sexes, all age groups
+    select(
+      Country = SpatialDim,   # Country code
+      Year = TimeDim,         # Year
+      SuicideRate = NumericValue # Suicide rate value
+    )
+} else {
+  print("Failed to retrieve suicide data.")
+}
+
+# ---- Cleaning Alcohol Data ----
+if (!is.null(data_alcohol_raw)) {
+  data_alcohol <- data_alcohol_raw %>%
+    select(
+      Country = SpatialDim,   # Country code
+      Year = TimeDim,         # Year
+      AlcoholSpendingPercent = NumericValue # Existence of guidance
+    )
+} else {
+  print("Failed to retrieve dementia benefit data.")
+}
+
+```
+
+```{r downloaded-data, include = FALSE}
+data_gdp <- read.csv("gdp.csv")
+data_gini <- read.csv("gini.csv")
+
+# Ensure consistent column names for merging
+data_gdp <- data_gdp %>% rename(Country = Code)
+data_gini <- data_gini %>% rename(Country = Code)
+
+```
+
+```{r explore-data, include = FALSE}
+cat("Alcohol Budget Data\n")
+summary(data_alcohol)
+
+cat("Suicide Data\n")
+summary(data_suicide)
+
+cat("GDP Data\n")
+summary(data_gdp)
+
+cat("Gini Data\n")
+summary(data_gini)
+
+```
+
+```{r remove-missing, include = FALSE}
+# Remove rows with any NA values in all datasets
+data_alcohol <- data_alcohol %>% drop_na()
+data_suicide <- data_suicide %>% drop_na()
+data_gdp <- data_gdp %>% drop_na()
+
+# Remove the column if all its values are NA
+data_gini <- data_gini %>%
+  select(-X990179.annotations)  
+
+```
+
+```{r merge-and-clean, include = FALSE}
+# Merge datasets by Country and Year
+data_merged <- data_alcohol %>%
+  inner_join(data_suicide, by = c("Country", "Year")) %>%
+  inner_join(data_gdp, by = c("Country", "Year")) %>%
+  inner_join(data_gini, by = c("Country", "Year"))
+
+# Remove rows with NA values
+data_merged <- na.omit(data_merged)
+
+
+# Remove one of the duplicate country name columns (keeping Entity.x)
+data_merged <- data_merged %>%
+  select(-Entity.y) %>%  # Remove Entity.y
+  rename(
+    Country_Name = Entity.x,  # Rename country name column
+    GDP_per_Capita = GDP.per.capita..PPP..constant.2021.international...,  # Rename GDP column
+    GINI_Index = Gini.coefficient  # Rename GINI column
+  )
+
+
+```
+
+\
+
+## Introduction
+
+\
+
+Suicide is a pressing global public health issue, with profound social, economic, and psychological implications. Understanding the factors that contribute to suicide rates is essential for shaping effective mental health policies and interventions. Prior research suggests that economic conditions, such as GDP per capita and income inequality, may influence suicide rates, while behavioral factors like alcohol consumption have also been linked to mental health outcomes. However, the interplay between these variables remains complex and varies across different countries and time periods.
+
+This study aims to investigate two key research questions. Firstly, how have suicide rates across countries been changing over time? Seoncly, how do GDP per capita, income inequality, and alcohol spending as a percentage of total household expenditure predict suicide rates across countries?
+
+To explore these questions, I constructed a comprehensive dataset with a response (suicide rates) and predictors (year, annual GDP per capita of countries, annual Gini index of countries, annual alcohol spending percentage of countries) by merging four different data sources. The suicide rates dataset, retrieved from the World Health Organization (WHO) API, provides annual crude suicide rates per 100,000 population for countries from 2000 to 2021. The alcohol expenditure dataset, also obtained through the WHO API, contains information on alcohol spending as a percentage of total household expenditure across countries from 1990 to 2017 (“The Global Health Observatory”, 2025). Economic indicators were sourced from Our World in Data, which compiles data from the World Bank. The GDP per capita dataset includes annual per capita income in international dollars for various countries from 1990 to 2023 (“GDP per capita”, 2025), while the Gini index dataset provides yearly measures of income inequality for various countries from 1963 to 2023 (“Gini Coefficient”, 2024). By merging these four datasets based on country code and year, I created a unified dataset that allows for a more thorough analysis of the factors associated with suicide rates. Exploratory figures and plots, as well as regression analysis, were employed to investigate the research questions.
+
+\
+
+\
+
+## Methods
+
+\
+
+The data for this analysis was obtained from multiple sources using API queries and online databases. The suicide rates data and the alcohol expenditure data were retrieved from the World Health Organization (WHO) API, which takes a mandatory parameter input on the indicator to be retrieved as well as various optional parameters on the filters to be applied. The suicide rates data was filtered to include only aggregate data for both sexes and all age groups when being retrieved, so it provides annual crude suicide rates per 100,000 population for each country around the world from 2000 to 2021. The alcohol expenditure data had no extra filters applied when being retrieved, and it contains annual alcohol expenditure as a percentage of total household expenditure for 55 countries from 1990 to 2017. 
+
+The GDP per capita data was downloaded from Our World in Data, which sourced the dataset from the World Bank’s World Development Indicators in 2025. The dataset contains the annual GDP per capita of each country worldwide from 1990 to 2023. The Gini index data was downloaded from Our World in Data, with data originally retrieved from the World Bank’s Poverty and Inequality Platform in 2024. This dataset provides the annual Gini coefficient for 170 countries from 1963 to 2023. 
+
+The final dataset would be obtained by merging these four datasets by country code and year. Therefore, after data retrieval, the datasets underwent several preprocessing steps to ensure consistency, completeness, and suitability for analysis. First, the “Code” column in the GDP and Gini index datasets, which contains the country codes, was each renamed to “Country” to facilitate merging, because the country code column in the suicide rates and alcohol expenditure datasets was named “Country”. The suicide rate dataset was filtered to retain records on both sexes and all age groups. Then, only essential columns (country information, year, and relevant indicator values) were kept in each dataset and rows containing missing values were removed from all datasets. Finally, the four datasets were merged using an inner join on “Country” and “Year”, ensuring alignment across all variables, and the columns were renamed for better clarity.
+
+To summarize the dataset and understand its structure, data explorations were conducted. Summary statistics (mean, median, standard deviation, min, and max) were computed for key numerical variable (suicide rates, GDP per capita, Gini index, and alcohol spending percentage); the annual average values of each of them were computed and visualized to examine yearly trends. Histograms were plotted for the key numeric variable (suicide rates, GDP per capita, Gini index, and alcohol spending percentage) to examine distribution. Scatter plots were created to explore relationships between suicide rates and other numerical variables (year, GDP per capita, Gini index, and alcohol spending percentage), with linear trend lines overlaid. Lastly, to investigate patterns and relationships, three linear regression models were fitted:
+
+Model 1: Examining how suicide rates change over time, with suicide rate as the response and year as the predictor.
+
+Model 2: Examining how the response, suicide rates, is influenced by the predictors GDP per capita, Gini index, and alcohol expenditure.
+
+Model 3: Extending Model 2 by controlling the year, assessing whether the influence of GDP per capita, Gini index, and alcohol expenditure on suicide rates change when accounting for temporal trends.
+
+Predictor significance will be evaluated using t-test p-values, with the threshold being 0.05.
+
+\
+\
+
+## Preliminary Results
+
+\
+
+The final merged dataset contains 267 observations on 7 columns: year, suicide rates, GDP per capita, Gini index, alcohol spending percentage, country code, and country name. 
+
+\
+
+```{r summary-table, echo = FALSE}
+# Create summary statistics table
+summary_table <- data_merged %>%
+  reframe(
+    Mean = c(mean(SuicideRate, na.rm = TRUE), mean(GDP_per_Capita, na.rm = TRUE), mean(GINI_Index, na.rm = TRUE), mean(AlcoholSpendingPercent, na.rm = TRUE)),
+    Median = c(median(SuicideRate, na.rm = TRUE), median(GDP_per_Capita, na.rm = TRUE), median(GINI_Index, na.rm = TRUE), median(AlcoholSpendingPercent, na.rm = TRUE)),
+    SD = c(sd(SuicideRate, na.rm = TRUE), sd(GDP_per_Capita, na.rm = TRUE), sd(GINI_Index, na.rm = TRUE), sd(AlcoholSpendingPercent, na.rm = TRUE)),
+    Min = c(min(SuicideRate, na.rm = TRUE), min(GDP_per_Capita, na.rm = TRUE), min(GINI_Index, na.rm = TRUE), min(AlcoholSpendingPercent, na.rm = TRUE)),
+    Max = c(max(SuicideRate, na.rm = TRUE), max(GDP_per_Capita, na.rm = TRUE), max(GINI_Index, na.rm = TRUE), max(AlcoholSpendingPercent, na.rm = TRUE))
+  ) %>%
+  mutate(Variable = c("Suicide Rate (per 100,000)", "GDP per Capita (international dollars)", "Gini Index", "Alcohol Spending (%)")) %>%
+  select(Variable, everything()) %>%  # Reorder columns
+  mutate(across(-Variable, ~ round(.x, 4)))  # Round all numeric values to 4 decimal places
+
+# Display nicely formatted table
+kable(summary_table, 
+      col.names = c("Variable", "Mean", "Median", "SD", "Min", "Max")) %>%
+  kable_styling(full_width = FALSE, position = "center", bootstrap_options = c("striped", "hover", "condensed")) %>%
+  add_header_above(c(" " = 1, "Statistics" = 5)) %>%
+  row_spec(0, bold = TRUE, extra_css = "border-bottom: 2px solid black;")  # Adds a thick line below the title
+
+```
+
+Table 1: Summary statistics of key variables, with descriptive statistics (mean, median, standard deviation, minimum, and maximum) for suicide rates, GDP per capita, Gini index, and alcohol spending across countries.
+
+```{r mean-by-year-table, echo = FALSE}
+# Compute mean values and number of data points for each year
+yearly_summary <- data_merged %>%
+  group_by(Year) %>%
+  summarise(
+    Count = n(),  # Count the number of data points per year
+    Mean_SuicideRate = mean(SuicideRate, na.rm = TRUE),
+    Mean_GDP = mean(GDP_per_Capita, na.rm = TRUE),
+    Mean_GINI = mean(GINI_Index, na.rm = TRUE),
+    Mean_Alcohol = mean(AlcoholSpendingPercent, na.rm = TRUE)
+  ) %>%
+  mutate(across(where(is.numeric), ~ round(.x, 4)))  # Round all numeric values to 4 decimal places
+
+# Create formatted table
+kable(yearly_summary, 
+      col.names = c("Year", "Data Points", "Mean Suicide Rate", "Mean GDP per Capita", "Mean Gini Index", "Mean Alcohol Spending (%)")) %>%
+  kable_styling(full_width = FALSE, position = "center", bootstrap_options = c("striped", "hover", "condensed")) %>%
+  add_header_above(c(" " = 1, "Yearly Averages" = 5)) %>%
+  row_spec(0, bold = TRUE, extra_css = "border-bottom: 2px solid black;")
+
+```
+
+Table 2: Yearly averages of key variables, with the mean values of suicide rates, GDP per capita, Gini index, and alcohol spending per year, along with the number of data points available for each year.
+
+\
+
+Table 1 presents summary statistics for the key variables in the dataset. The average suicide rate is approximately 15.2535 per 100,000 people, the standard error suggests that this average has an estimated range from 2.81 to 53.06, suggesting substantial variation across countries. GDP per capita varies widely, from a minimum of approximately \$1,381 to a maximum of approximately \$87,263, reflecting economic disparities between nations. The Gini index (which measures income inequality) ranges from approximately 0.2372 to 0.5084, with a mean of 0.3184, indicating moderate inequality across the dataset. Alcohol spending as a percentage of total household expenditure is relatively low, averaging approximately 2.0119%, though some countries report spending as high as 5.8%.
+
+Table 2 provides yearly averages of the key variables, showing fluctuations in suicide rates, economic conditions, and inequality levels. Notably, suicide rates do not display a clear increasing or decreasing trend over time. Values in years with a significantly lower number of observations (2001, 2002, 2016, 2017) appear significantly lower than the rest, but this issue is very likely due to insufficient data.
+
+\
+
+```{r numeric-var-distribution, echo = FALSE}
+# Define histogram plotting function with different colors
+plot_histogram <- function(data, column, title, x_label, fill_color) {
+  ggplot(data, aes(x = !!sym(column))) +
+    geom_histogram(fill = fill_color, color = "black", bins = 30, alpha = 0.7) +
+    labs(title = title, x = x_label, y = "Count") +
+    theme_minimal()
+}
+
+# Generate individual histograms with different colors
+hist_suicide <- plot_histogram(data_merged, "SuicideRate", "Distribution of Suicide Rates", "Suicide Rate (per 100,000)", "grey")
+hist_gdp <- plot_histogram(data_merged, "GDP_per_Capita", "Distribution of GDP per Capita", "GDP per Capita (international dollars)", "darkorange")
+hist_gini <- plot_histogram(data_merged, "GINI_Index", "Distribution of Gini Index", "Gini Index", "darkgreen")
+hist_alcohol <- plot_histogram(data_merged, "AlcoholSpendingPercent", "Distribution of Alcohol Spending", "Alcohol Spending (%)", "steelblue")
+
+# Arrange plots in a 2x2 grid layout
+grid.arrange(hist_suicide, hist_gdp, hist_gini, hist_alcohol, ncol = 2)
+
+```
+
+Figure 1: Histograms depicting the distribution of suicide rates, GDP per capita, Gini index, and alcohol spending across all data points.
+
+```{r suicide-against-numeric, echo = FALSE, message = FALSE, warning = FALSE}
+# Define scatter plot function with trend line
+plot_scatter <- function(data, x_col, x_label, title, point_color) {
+  ggplot(data, aes(x = !!sym(x_col), y = SuicideRate)) +
+    geom_point(color = point_color, alpha = 0.6) +
+    geom_smooth(method = "lm", color = "black", linewidth = 0.5, linetype = "dashed") + # Linear trend line
+    labs(title = title, x = x_label, y = "Suicide Rate (per 100,000)") +
+    theme_minimal()
+}
+
+# Generate scatter plots with different colors
+scatter_year <- plot_scatter(data_merged, "Year", "Year", "Suicide Rate vs. Year", "grey")
+scatter_gdp <- plot_scatter(data_merged, "GDP_per_Capita", "GDP per Capita (international dollars)", "Suicide Rate vs. GDP per Capita", "darkorange")
+scatter_gini <- plot_scatter(data_merged, "GINI_Index", "Gini Index", "Suicide Rate vs. Gini Index", "darkgreen")
+scatter_alcohol <- plot_scatter(data_merged, "AlcoholSpendingPercent", "Alcohol Spending (%)", "Suicide Rate vs. Alcohol Spending", "steelblue")
+
+# Arrange scatter plots in a 2x2 grid layout
+grid.arrange(scatter_year, scatter_gdp, scatter_gini, scatter_alcohol, ncol = 2)
+
+```
+
+Figure 2: Scatter plots of suicide rates against year, GDP per capita, Gini index, and alcohol spending percentage, with linear regression trend lines.
+
+\
+
+Figure 1 presents the distributions of the main variables. Suicide rates (top left) appear right-skewed, with most observations clustered between 5 and 20 per 100,000, but with some extreme values above 50. GDP per capita (top right) has a left-skewed bimodal distribution, suggesting two distinct economic groups of countries. The Gini index (bottom left) distribution is right-skewed and concentrated around approximately 0.3. Alcohol spending (bottom right) is right-skewed and exhibits a peak approximately between 1% and 2%.
+
+Figure 2 shows scatter plots of suicide rates against the year, GDP per capita, Gini index, and alcohol spending. The regression line in the suicide rate vs. year plot (top left) is nearly flat, suggesting no significant change over time, which coincides with the findings in Table 2. In the suicide rate vs. GDP per capita plot (top right), a negative trend is observed, indicating that higher GDP per capita might be associated with lower suicide rates, though this plot reveals a slightly non-linear pattern between the two variables. In the suicide rate vs. Gini index plot (bottom left), although the regression line suggests a negative relationship, the plot reveals the presence of distinct clusters within the data, with one having a positive trend and the other having a negative trend, suggesting that other variables need to be considered to more thoroughly capture this relationship between Gini index and suicide rates. In the suicide rate vs. alcohol spending percentage plot (bottom right), a weak positive relationship is observed, implying that countries where alcohol spending is higher may have slightly higher suicide rates.
+
+\
+
+```{r model1, echo = FALSE}
+# How has suicide rates across countries been changing over time?
+
+# Fit the linear regression model
+model1 <- lm(SuicideRate ~ Year, data = data_merged)
+
+# Extract model summary
+model1_summary <- summary(model1)
+
+# Extract coefficients
+coefficients_table <- as.data.frame(model1_summary$coefficients)
+coefficients_table <- coefficients_table %>%
+  mutate(Term = rownames(.)) %>%
+  select(Term, Estimate = Estimate, `Std. Error`, `t value`, `Pr(>|t|)`) %>%
+  mutate(across(where(is.numeric), ~ round(.x, 4))) # Round values to 4 decimal places
+
+# Format the table using kableExtra
+kable(coefficients_table, 
+      col.names = c("Term", "Estimate", "Standard Error", "t Value", "t-Test p-Value")) %>%
+  kable_styling(full_width = FALSE, position = "center", bootstrap_options = c("striped", "hover", "condensed")) %>%
+  row_spec(0, bold = TRUE, extra_css = "border-bottom: 2px solid black;")
+
+```
+
+Table 3: The estimated predictor coefficients, standard errors, and t-test p-values for Model 1, a linear regression model examining changes in suicide rates over time.
+
+```{r model2, echo = FALSE}
+# How do GDP per capita, income inequality, and alcohol spending as a percentage of total expenditure predict suicide rates across countries?
+
+# Fit the linear regression model
+model2 <- lm(SuicideRate ~ GDP_per_Capita + GINI_Index + AlcoholSpendingPercent, data = data_merged)
+
+# Extract model summary
+model2_summary <- summary(model2)
+
+# Extract coefficients and format nicely
+coefficients_table <- as.data.frame(model2_summary$coefficients) %>%
+  mutate(Term = rownames(.)) %>%
+  select(Term, Estimate = Estimate, `Std. Error`, `t value`, `Pr(>|t|)`) %>%
+  mutate(across(where(is.numeric), ~ round(.x, 4)))  # Round values to 4 decimal places
+
+# Create formatted regression table
+kable(coefficients_table, 
+      col.names = c("Term", "Estimate", "Standard Error", "t Value", "p-Value")) %>%
+  kable_styling(full_width = FALSE, position = "center", bootstrap_options = c("striped", "hover", "condensed")) %>%
+  row_spec(0, bold = TRUE, extra_css = "border-bottom: 2px solid black;")
+
+```
+
+Table 4: The estimated predictor coefficients, standard errors, and t-test p-values for Model 2, a multiple regression model evaluating the effects of GDP per capita, Gini index, and alcohol spending on suicide rates.
+
+```{r model3, echo = FALSE}
+# How do GDP per capita, income inequality, and alcohol spending as a percentage of total expenditure predict suicide rates across countries, controlling for year?
+
+# Fit the linear regression model controlling for Year
+model3 <- lm(SuicideRate ~ Year + GDP_per_Capita + GINI_Index + AlcoholSpendingPercent, data = data_merged)
+
+# Extract model summary
+model3_summary <- summary(model3)
+
+# Extract coefficients and format nicely
+coefficients_table <- as.data.frame(model3_summary$coefficients) %>%
+  mutate(Term = rownames(.)) %>%
+  select(Term, Estimate = Estimate, `Std. Error`, `t value`, `Pr(>|t|)`) %>%
+  mutate(across(where(is.numeric), ~ round(.x, 4)))  # Round values to 4 decimal places
+
+# Create formatted regression table
+kable(coefficients_table, 
+      col.names = c("Term", "Estimate", "Standard Error", "t Value", "p-Value")) %>%
+  kable_styling(full_width = FALSE, position = "center", bootstrap_options = c("striped", "hover", "condensed")) %>%
+  row_spec(0, bold = TRUE, extra_css = "border-bottom: 2px solid black;")
+```
+
+Table 5: The estimated predictor coefficients, standard errors, and t-test p-values for Model 3, multiple regression model evaluating the effects of GDP per capita, Gini index, and alcohol spending on suicide rates, controlling for year.
+
+\
+
+Table 3 presents the results of Model 1, which examines the relationship between year and suicide rates. The model finds no significant temporal trend (p = 0.8519), indicating that suicide rates have not systematically increased or decreased over time in the dataset. Table 4 summarizes Model 2, which investigates the effects of GDP per capita, Gini index, and alcohol spending on suicide rates. The results indicate that GDP per capita is significantly associated with suicide rates (p = 0.0358), although high GDP per capita only exerts a slightly negative influence on suicide rates (estimate = -0.0001). The Gini index has a strong negative association with suicide rates (estimate = -35.1124, p = 0.0014), suggesting that greater income inequality correlates with lower suicide rates. Alcohol spending is positively associated with suicide rates, but the effect is insignificant (p = 0.0848). Table 5 reports Model 3, which extends Model 2 by controlling for the year. The results remain largely consistent: GDP per capita (estimate = -0.0001, p = 0.034) and the Gini index (estimate = -35.4847, p = 00014) remain significant predictors and their coefficient estimate values are similar to those in Model 2, reinforcing their roles in explaining suicide rate variability. The year variable (p = 0.747) and alcohol spending percentage (p = 0.1036) remain non-significant, suggesting that the observed relationships are not driven by temporal trends but rather by underlying socioeconomic factors.
+
+\
+\
+
+## Summary
+
+\
+
+This study sought to answer two research questions. Firstly, how have suicide rates across countries been changing over time? Seoncly, how do GDP per capita, income inequality, and alcohol spending as a percentage of total household expenditure predict suicide rates across countries?
+
+The influence of the year variable on suicide rates was consistently found to be insignificant across tabular summaries, exploratory plots, and the results of Model 1 and Model 3, suggesting that suicide rates are not influenced by time alone but rather by underlying structural factors.
+
+The results of Model 2 and Model 3 indicate that higher GDP per capita is associated with lower suicide rates, though the effect size is small. Surprisingly, higher income inequality (Gini index) correlates with lower suicide rates, contradicting intuitive expectations. Alcohol spending appears to have a weak positive association with suicide rates, but the effect is not significant. These findings suggest that economic and social factors play an important role in explaining suicide rates, but may not capture the full complexity of the issue.
+
+Nonetheless, several limitations should be noted. First, the relative scarcity in alcohol spending percentage data resulted in the loss of many countries after merging, which may have biased the sample. Second, the negative association between Gini index and suicide rates is counterintuitive and suggests that important confounding factors may be missing from the model. Third, the suicide rate vs. GDP per capita scatter plot reveals a slightly non-linear relationship, implying that a simple linear regression may not sufficiently unravel the relationship. Finally, the suicide rate vs. Gini index scatter plot reveals the presence of clusters, each exhibiting a different relationship, suggesting that we may need to introduce new predictors and interaction terms to fully capture the relationship.
+
+To address these limitations in the final project, several improvements will be considered. Additional predictors, such as religion, mental health policies, or cultural factors, could help explain unexpected trends and refine the model. Alternative statistical approaches, such as non-linear models or transformations, may better help capture the relationships between variables. Finally, expanding the dataset by incorporating more complete sources in place of alcohol expenditure could reduce data loss and improve model robustness. These refinements will allow for a more nuanced analysis of the factors influencing suicide rates and provide a clearer understanding of the socioeconomic and cultural determinants involved.
+
+\
+\
+\
+
+### Citations
+
+\
+
+Our World in Data. (2024, October 7). Gini Coefficient. <https://ourworldindata.org/grapher/economic-inequality-gini-index>
+
+Our World in Data. (2025, January 24). GDP per capita. <https://ourworldindata.org/grapher/gdp-per-capita-worldbank>
+
+World Health Organization. (2025, n.d.). The Global Health Observatory. <https://www.who.int/data/gho/info/gho-odata-api>
