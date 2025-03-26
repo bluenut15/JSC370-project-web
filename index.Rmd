@@ -8,3 +8,72 @@ output:
 ---
 
 This is my JSC370 final project website!
+
+```{r}
+source("process_starbucks_data.R")
+```
+
+## Setup
+
+```{r setup, include=FALSE}
+library(dplyr)
+library(plotly)
+
+# Count Starbucks stores per state
+sb_counts <- sb_usa %>%
+  filter(Country == "US") %>%
+  group_by(`State/Province`) %>%
+  summarise(num_stores = n())
+
+# Join with population
+state_store_data <- usa_pop %>%
+  inner_join(sb_counts, by = c("state" = "State/Province"))
+
+# Prepare p1: Scatterplot (Population vs Starbucks Stores)
+p1_scatter <- plot_ly(
+  data = state_store_data,
+  x = ~population,
+  y = ~num_stores,
+  type = "scatter",
+  mode = "markers",
+  text = ~state,
+  marker = list(size = 10, color = 'rgba(0,100,200,0.6)', line = list(width = 1))
+) %>%
+  layout(
+    title = "State Population vs. Number of Starbucks Stores",
+    xaxis = list(title = "Population"),
+    yaxis = list(title = "Number of Starbucks Stores")
+  )
+
+# Prepare p2: Bar Plot of Population
+usa_pop_sorted <- usa_pop %>% arrange(population)
+
+p2_scatter <- plot_ly(
+  data = usa_pop_sorted,
+  x = ~population,
+  y = ~reorder(state, population),
+  type = 'bar',
+  orientation = 'h'
+) %>%
+  layout(
+    title = "Population by US State",
+    xaxis = list(title = "Population"),
+    yaxis = list(title = "")
+  )
+```
+
+---
+
+## Showcasing plots {.tabset}
+
+### Figure 1
+
+```{r echo=FALSE}
+p1_scatter
+```
+
+### Figure 2
+
+```{r echo=FALSE}
+p2_scatter
+```
