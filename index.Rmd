@@ -31,18 +31,16 @@ state_store_data <- usa_pop %>%
 
 # Prepare p1: Scatterplot (Population vs Starbucks Stores)
 p1_scatter <- plot_ly(
-  data = state_store_data,
-  x = ~population,
-  y = ~num_stores,
-  type = "scatter",
-  mode = "markers",
-  text = ~state,
-  marker = list(size = 10, color = 'rgba(0,100,200,0.6)', line = list(width = 1))
+  data = sb_counts,
+  x = ~num_stores,
+  y = ~`State/Province`,
+  type = 'bar',
+  orientation = 'h'
 ) %>%
   layout(
-    title = "State Population vs. Number of Starbucks Stores",
-    xaxis = list(title = "Population"),
-    yaxis = list(title = "Number of Starbucks Stores")
+    title = "Number of Starbucks by US State",
+    xaxis = list(title = "Number of Starbucks"),
+    yaxis = list(title = "")
   )
 
 # Prepare p2: Bar Plot of Population
@@ -61,6 +59,7 @@ p2_scatter <- plot_ly(
     yaxis = list(title = "")
   )
 ```
+
 
 ---
 
