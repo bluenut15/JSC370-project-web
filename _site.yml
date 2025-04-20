@@ -3,8 +3,6 @@ output_dir: "."
 navbar:
   title: "Suicide Rates Analysis"
   left:
-    - text: "Suicide Rates Analysis"
-      href: index.html
     - text: "About"
       href: about.html
     - text: "EDA"
@@ -21,6 +19,4 @@ navbar:
 output:
   html_document:
     theme: cosmo
-    include:
-      after_body: footer.html
     css: styles.css

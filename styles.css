@@ -30,6 +30,10 @@ img-circle {
     border-radius: 50%;
 }
 
-code { /* Code block */
+code { 
     font-size: 15px;
+}
+
+div.footer {
+  display: none;
 }

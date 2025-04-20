@@ -1,12 +1,10 @@
 ---
 title: "Suicide Rates Analysis"
-author: "Cynthia Luo"
 output: 
     html_document:
-        toc: TRUE
-        toc_float: TRUE
+      css: style.css
 ---
 
-# An Analysis on Key Factors that Influence Suicide Rates
+\
 
-Hello world
+An Analysis on Key Factors that Influence Suicide Rates
