@@ -1,78 +1,12 @@
 ---
-title: "JSC370 Final Project"
-author: "Cynthia"
+title: "Suicide Rates Analysis"
+author: "Cynthia Luo"
 output: 
     html_document:
         toc: TRUE
         toc_float: TRUE
 ---
 
-This is my JSC370 final project website!
+# An Analysis on Key Factors that Influence Suicide Rates
 
-```{r}
-source("process_starbucks_data.R")
-```
-
-## Setup
-
-```{r setup, include=FALSE}
-library(dplyr)
-library(plotly)
-
-# Count Starbucks stores per state
-sb_counts <- sb_usa %>%
-  filter(Country == "US") %>%
-  group_by(`State/Province`) %>%
-  summarise(num_stores = n())
-
-# Join with population
-state_store_data <- usa_pop %>%
-  inner_join(sb_counts, by = c("state" = "State/Province"))
-
-# Prepare p1: Scatterplot (Population vs Starbucks Stores)
-p1_scatter <- plot_ly(
-  data = sb_counts,
-  x = ~num_stores,
-  y = ~`State/Province`,
-  type = 'bar',
-  orientation = 'h'
-) %>%
-  layout(
-    title = "Number of Starbucks by US State",
-    xaxis = list(title = "Number of Starbucks"),
-    yaxis = list(title = "")
-  )
-
-# Prepare p2: Bar Plot of Population
-usa_pop_sorted <- usa_pop %>% arrange(population)
-
-p2_scatter <- plot_ly(
-  data = usa_pop_sorted,
-  x = ~population,
-  y = ~reorder(state, population),
-  type = 'bar',
-  orientation = 'h'
-) %>%
-  layout(
-    title = "Population by US State",
-    xaxis = list(title = "Population"),
-    yaxis = list(title = "")
-  )
-```
-
-
----
-
-## Showcasing plots {.tabset}
-
-### Figure 1
-
-```{r echo=FALSE}
-p1_scatter
-```
-
-### Figure 2
-
-```{r echo=FALSE}
-p2_scatter
-```
+Hello world

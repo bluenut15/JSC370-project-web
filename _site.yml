@@ -1,15 +1,23 @@
-name: "my-website"
+name: "Suicide Rates Analysis"
 output_dir: "."
 navbar:
-  title: "JSC370 Final Project"
+  title: "Suicide Rates Analysis"
   left:
-    - text: "Home"
+    - text: "Suicide Rates Analysis"
       href: index.html
+    - text: "About"
+      href: about.html
+    - text: "EDA"
+      href: eda.html
+    - text: "Findings"
+      href: findings.html
   right:
+    - text: "Appendices"
+      href: appendices.html
+    - text: "Acknowledgement"
+      href: acknowledgement.html
     - icon: fa-github fa-lg
-      href: https://github.com/bluenut15/JSC370-project
-    - text: "JSC370 Home"
-      href: https://github.com/bluenut15/JSC370-project
+      href: https://github.com/bluenut15/JSC370-project-web
 output:
   html_document:
     theme: cosmo
