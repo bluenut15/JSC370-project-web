@@ -7,6 +7,9 @@ output:
     keep_tex: true
 ---
 
+\
+
+**Source Code on GitHub:** https://github.com/bluenut15/JSC370-project-web.git
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(warning = FALSE, message = FALSE)
