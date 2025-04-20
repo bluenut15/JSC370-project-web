@@ -1,0 +1,711 @@
+---
+title: "An Analysis on Key Factors that Influence Suicide Rates"
+author: "Cynthia Luo"
+output: 
+  pdf_document:
+    latex_engine: xelatex
+    keep_tex: true
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE)
+```
+
+```{r libraries, include = FALSE}
+library(httr)
+library(jsonlite)
+library(readr)
+library(dplyr)
+library(tidyr)
+library(tidyverse)
+library(tidytext)
+library(ggplot2)
+library(ggcorrplot)
+library(glm2)
+library(purrr)
+library(patchwork)
+library(data.table)
+library(knitr)
+library(kableExtra)
+library(gridExtra)
+
+```
+
+```{r api-indicators, include = FALSE}
+# Define the API endpoint for retrieving indicators
+url <- "https://ghoapi.azureedge.net/api/Indicator"
+
+# Send GET request to the API
+response <- GET(url)
+
+# Check if the request was successful
+if (status_code(response) == 200) {
+  # Parse the JSON response
+  data <- fromJSON(content(response, as = "text"))
+  
+  # Extract the relevant information (list of indicators)
+  indicators <- data$value
+} else {
+  print("Failed to retrieve data. Check the API URL or connection.")
+}
+
+```
+
+```{r api-data_retrieval, include = FALSE}
+# Function to fetch data for a given indicator
+fetch_indicator_data <- function(indicator_code) {
+  url <- paste0("https://ghoapi.azureedge.net/api/", indicator_code)
+  
+  # Send GET request
+  response <- GET(url)
+  
+  # Check if request was successful
+  if (status_code(response) == 200) {
+    # Parse JSON response
+    data <- fromJSON(content(response, as = "text"))
+    
+    # Extract relevant data
+    return(data$value)
+  } else {
+    print(paste("Failed to retrieve data for indicator:", indicator_code))
+    return(NULL)
+  }
+}
+
+# Retrieve data for indicators
+data_suicide_raw <- fetch_indicator_data("SDGSUICIDE") # Crude suicide rates (per 100 000 population)
+data_health_spending_raw <- fetch_indicator_data("GHED_CHEGDP_SHA2011") # Current health expenditure (CHE) as percentage of GDP
+
+```
+
+```{r api-data-cleanning, include = FALSE}
+# ---- Cleaning Suicide Data ----
+if (!is.null(data_suicide_raw)) {
+  data_suicide <- data_suicide_raw %>%
+    filter(Dim1 == "SEX_BTSX" & Dim2 == "AGEGROUP_YEARSALL") %>% # Both sexes, all age groups
+    select(
+      Country = SpatialDim,    # Country code
+      Region = ParentLocation, # Region
+      Year = TimeDim,          # Year
+      SuicideRate = NumericValue # Suicide rate value
+    )
+} else {
+  print("Failed to retrieve suicide data.")
+}
+
+# ---- Cleaning Health Spending Data ----
+if (!is.null(data_health_spending_raw)) {
+  data_health_spending <- data_health_spending_raw %>%
+    select(
+      Country = SpatialDim,    # Country code
+      Region = ParentLocation, # Region
+      Year = TimeDim,          # Year
+      HealthSpendingPercent = NumericValue # Percentage
+    )
+} else {
+  print("Failed to retrieve health spending data.")
+}
+
+```
+
+```{r downloaded-data, include = FALSE}
+data_gdp <- read.csv("gdp.csv")
+data_gini <- read.csv("gini.csv")
+
+# Ensure consistent column names for merging
+data_gdp <- data_gdp %>% rename(Country = Code)
+data_gini <- data_gini %>% rename(Country = Code)
+
+```
+
+```{r explore-data, include = FALSE}
+cat("Health Expenditure Data\n")
+summary(data_health_spending)
+
+cat("Suicide Data\n")
+summary(data_suicide)
+
+cat("GDP Data\n")
+summary(data_gdp)
+
+cat("Gini Data\n")
+summary(data_gini)
+
+```
+
+```{r remove-missing, include = FALSE}
+# Remove rows with any NA values in all datasets
+data_health_spending <- data_health_spending %>% drop_na()
+data_suicide <- data_suicide %>% drop_na()
+data_gdp <- data_gdp %>% drop_na()
+
+# Remove the column if all its values are NA
+data_gini <- data_gini %>%
+  select(-X990179.annotations)  
+
+```
+
+```{r merge-and-clean, include = FALSE}
+# Merge datasets by Country and Year
+data_merged <- data_health_spending %>%
+  inner_join(data_suicide, by = c("Country", "Year", "Region")) %>%
+  inner_join(data_gdp, by = c("Country", "Year")) %>%
+  inner_join(data_gini, by = c("Country", "Year"))
+
+# Remove rows with NA values
+data_merged <- na.omit(data_merged)
+
+
+# Remove one of the duplicate country name columns (keeping Entity.x)
+data_merged <- data_merged %>%
+  select(-Entity.y) %>%  # Remove Entity.y
+  rename(
+    Country_Name = Entity.x,  # Rename country name column
+    GDP_per_Capita = GDP.per.capita..PPP..constant.2021.international...,  # Rename GDP column
+    GINI_Index = Gini.coefficient  # Rename GINI column
+  )
+
+
+```
+
+\
+
+# Introduction
+
+Suicide is a pressing global public health issue, with profound social, economic, and psychological implications. Understanding the factors that contribute to suicide rates is essential for shaping effective prevention strategies and informing targeted interventions. While much prior research has explored economic and social influences on mental health outcomes, the relationship between macro-level indicators—such as income inequality, national wealth, and health system investment—and suicide rates remains complex and often varies by region.
+
+This, this study aims to investigate the research questions: What are the key factors that influence suicide rates and how do they influence suicide rates? Do the relationships differ across regions around the world?
+
+To explore these questions, I constructed a comprehensive dataset with a response (suicide rates) and main predictors (annual GDP per capita of countries, annual Gini index of countries, annual health spending percentage of countries, region of countries) by merging four different data sources. The suicide rates dataset, retrieved from the World Health Organization (WHO) API, provides annual crude suicide rates per 100,000 population for countries from 2000 to 2021. The health expenditure dataset, also obtained through the WHO API, contains information on health spending as a percentage of GDP across countries from 2000 to 2022 (“The Global Health Observatory”, 2025). Economic indicators were sourced from Our World in Data, which compiles data from the World Bank. The GDP per capita dataset includes annual per capita income in international dollars for various countries from 1990 to 2023 (“GDP per capita”, 2025), while the Gini index dataset provides yearly measures of income inequality for various countries from 1963 to 2023 (“Gini Coefficient”, 2024). By merging these four datasets based on region, country code, and year, I created a unified dataset that allows for a more thorough analysis of the factors associated with suicide rates. Exploratory figures and plots, as well as regression analysis, were employed to investigate the research questions. 
+
+\
+\
+
+# Methods
+
+The data for this analysis was obtained from multiple sources using API queries and online databases. The suicide rates data was retrieved from the World Health Organization (WHO) API, providing annual crude suicide rates per 100,000 population for 185 countries around the world from 2000 to 2021. The API response was filtered to include only aggregate data for both sexes and all age groups. The health expenditure data was also extracted from the WHO API, containing annual health expenditure as a percentage of GDP for 194 countries from 2000 to 2022. In addition to the numerical variables of interest, the two WHO datasets also have information on the parent location, or region, of each country. The GDP per capita data was downloaded from Our World in Data, which sourced the dataset from the World Bank’s World Development Indicators in 2025. The dataset contains the annual GDP per capita of all countries worldwide from 1990 to 2023. The Gini index data was downloaded from Our World in Data, with data originally retrieved from the World Bank’s Poverty and Inequality Platform in 2024. This dataset provides the annual Gini coefficient for 170 countries from 1963 to 2023. 
+
+To clean the datasets appropriately, I first explored the four datasets to understand their structure and identify missing or abnormal values. Then, in the Gini index dataset, I dropped an irrelevant column containing only missing values. Afterward, I removed all rows with any missing values from all datasets to ensure completeness. After cleaning, I merged the four datasets using an inner join on common columns: country, year, and region. This ensured that only observations with complete information across all variables were retained. Lastly, I removed a duplicate country name column and renamed the remaining variables for GDP per capita, Gini index, and country name to improve readability in the final merged dataset.
+
+The data analysis began with creating a summary statistics table that presented the mean, median, standard deviation, minimum, and maximum values for key numerical variables (suicide rate, GDP per capita, Gini index, and health spending). This provided an initial overview of the central tendency and variability in the dataset. Next, I visualized the distributions of all key variables (suicide rate, GDP per capita, Gini index, health spending, and region) using histograms and bar plots, and examined the relationships between the predictors (GDP per capita, Gini index, health spending, and region) and suicide rates through scatterplots and box plots. During this exploratory phase, I observed evidence of a non-linear relationship between suicide rates and the numerical predictors, which motivated the transformation of the response variable. Specifically, I applied a square root transformation to suicide rates to improve linearity and model fit. To further investigate patterns and relationships, I employed linear regression analysis, which models the relationship between a dependent variable and one or more independent variables by fitting a linear equation to the observed data. I fitted and compared three linear regression models:
+
+- Model 0: A baseline model using the untransformed suicide rates and the numerical predictors GDP per capita, Gini index, and health spending.
+
+- Model 1: A transformed model using the square root of suicide rates as the response variable, with the same predictors as Model 0.
+
+- Model 2: An extended model using the square root of suicide rates as the response variable, all the key predictors GDP per capita, Gini index, health spending, and region, but also incorporating interaction terms between each numerical predictor and region to account for regional variation in effects.
+
+Predictor significance in each model was evaluated using t-test p-values, with the threshold being 0.05. The performance of each model was evaluated using RSS, R squared, adjusted R squared, and overall F-test p-values.
+
+\
+\
+
+# Results
+
+The final merged dataset contained 1,567 observations on 8 variables: year, suicide rates, GDP per capita, Gini index, health spending percentage, region, country code, and country name, for 156 countries around the world. Exploratory data analysis as well as regression analysis were employed to explore the data and investigate the research question. 
+
+\newpage
+
+```{r summary-table, echo = FALSE}
+# Create summary statistics table for key variables
+summary_table <- data_merged %>%
+  reframe(
+    Mean = c(
+      mean(SuicideRate, na.rm = TRUE),
+      mean(GDP_per_Capita, na.rm = TRUE),
+      mean(GINI_Index, na.rm = TRUE),
+      mean(HealthSpendingPercent, na.rm = TRUE)
+    ),
+    Median = c(
+      median(SuicideRate, na.rm = TRUE),
+      median(GDP_per_Capita, na.rm = TRUE),
+      median(GINI_Index, na.rm = TRUE),
+      median(HealthSpendingPercent, na.rm = TRUE)
+    ),
+    SD = c(
+      sd(SuicideRate, na.rm = TRUE),
+      sd(GDP_per_Capita, na.rm = TRUE),
+      sd(GINI_Index, na.rm = TRUE),
+      sd(HealthSpendingPercent, na.rm = TRUE)
+    ),
+    Min = c(
+      min(SuicideRate, na.rm = TRUE),
+      min(GDP_per_Capita, na.rm = TRUE),
+      min(GINI_Index, na.rm = TRUE),
+      min(HealthSpendingPercent, na.rm = TRUE)
+    ),
+    Max = c(
+      max(SuicideRate, na.rm = TRUE),
+      max(GDP_per_Capita, na.rm = TRUE),
+      max(GINI_Index, na.rm = TRUE),
+      max(HealthSpendingPercent, na.rm = TRUE)
+    )
+  ) %>%
+  mutate(Variable = c(
+    "Suicide Rate (per 100,000)",
+    "GDP per Capita (international dollars)",
+    "Gini Index",
+    "Health Spending (% of GDP)"
+  )) %>%
+  select(Variable, everything()) %>%
+  mutate(across(-Variable, ~ round(.x, 3)))
+
+# Display nicely formatted table with striped rows for PDF
+kable(summary_table,
+      col.names = c("Variable", "Mean", "Median", "SD", "Min", "Max"),
+      booktabs = TRUE,
+      longtable = TRUE) %>%
+  kable_styling(
+    full_width = FALSE,
+    position = "center",
+    latex_options = c("striped", "hold_position", "repeat_header"),
+    stripe_color = "#f5f5f5",  # Light grey stripe for every other row
+    font_size = 10
+  ) %>%
+  row_spec(0, bold = TRUE, extra_css = "border-bottom: 2px solid black;")
+
+
+```
+
+**Table 1:** Summary statistics for key numerical variables, including suicide rate, GDP per capita, Gini index, and health spending. Values shown include the mean, median, standard deviation, minimum, and maximum across all countries and years in the dataset.
+
+\
+
+```{r variable-distributions, echo = FALSE, fig.height=2}
+# 1. Histogram: Suicide Rate
+p1 <- ggplot(data_merged, aes(x = SuicideRate)) +
+  geom_histogram(fill = "darkgrey", color = "white", bins = 30) +
+  labs(title = "Histogram of Suicide Rates", x = "Suicide Rate", y = "Count") +
+  theme_minimal()
+
+# 2. Bar Plot: Region
+p2 <- ggplot(data_merged, aes(x = Region)) +
+  geom_bar(fill = "orchid") +
+  labs(title = "Bar plot of Region", x = "Region", y = "Count") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 25, hjust = 1))
+
+# 3. Histogram: GDP per Capita
+p3 <- ggplot(data_merged, aes(x = GDP_per_Capita)) +
+  geom_histogram(fill = "darkorange", color = "white", bins = 30) +
+  labs(title = "Histogram of GDP per Capita", x = "GDP per Capita", y = "Count") +
+  theme_minimal()
+
+# 4. Histogram: Gini Index
+p4 <- ggplot(data_merged, aes(x = GINI_Index)) +
+  geom_histogram(fill = "darkgreen", color = "white", bins = 30) +
+  labs(title = "Histogram of Gini Index", x = "Gini Index", y = "Count") +
+  theme_minimal()
+
+# 5. Histogram: Health Spending
+p5 <- ggplot(data_merged, aes(x = HealthSpendingPercent)) +
+  geom_histogram(fill = "steelblue", color = "white", bins = 30) +
+  labs(title = "Histogram of Health Spending\n(% of GDP)", x = "Health Spending", y = "Count") +
+  theme_minimal()
+
+# Grid 1: Suicide Rate and Year
+grid.arrange(p1, ncol = 1)
+
+# Grid 2: Region and GDP per Capita
+grid.arrange(p2, p3, ncol = 2)
+
+# Grid 3: Gini Index and Health Spending
+grid.arrange(p4, p5, ncol = 2)
+
+```
+
+**Figure 1:** Distribution of key variables in the dataset, including that for suicide rates (top plot), region (middle left plot), GDP per capita (middle right plot), Gini index (bottom left plot), and health spending as a percentage of GDP (bottom right plot). 
+
+\newpage
+
+```{r suicide-against-vars, echo = FALSE, fig.height=4}
+# Define scatter plot function
+plot_scatter <- function(data, x_col, x_label, title, point_color) {
+  ggplot(data, aes(x = !!sym(x_col), y = SuicideRate)) +
+    geom_point(color = point_color, alpha = 0.6) +
+    labs(title = title, x = x_label, y = "Suicide Rate (per 100,000)") +
+    theme_minimal()
+}
+
+# Generate plots with different colors
+box_region <- ggplot(data_merged, aes(x = Region, y = SuicideRate)) +
+  geom_boxplot(fill = "orchid", color = "black", alpha = 0.8) +
+  labs(
+    title = "Suicide Rates\nby Region",
+    x = "Region",
+    y = "Suicide Rate (per 100,000)"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 30, hjust = 1)
+  )
+
+scatter_gdp <- plot_scatter(data_merged, "GDP_per_Capita", "GDP per Capita (international dollars)", "Suicide Rates\nvs. GDP per Capita", "darkorange")
+scatter_gini <- plot_scatter(data_merged, "GINI_Index", "Gini Index", "Suicide Rates\nvs. Gini Index", "darkgreen")
+scatter_health <- plot_scatter(data_merged, "HealthSpendingPercent", "Health Spending (% of GDP)", "Suicide Rates\nvs. Health Spending Percentage", "steelblue")
+
+# Grid 1
+grid.arrange(box_region, scatter_gdp, ncol = 2)
+
+# Grid 2
+grid.arrange(scatter_gini, scatter_health, ncol = 2)
+```
+
+**Figure 2:** Relationship between suicide rates and key predictors, including region (top left plot), GDP per capita (top right plot), Gini index (bottom left plot), and health spending as a percentage of GDP (bottom right plot). 
+
+\newpage
+
+```{r suicide-against-numeric-transformed, echo = FALSE, fig.height=4}
+data_merged$SuicideRate_sqrt <- sqrt(data_merged$SuicideRate)
+
+# Define scatter plot function
+plot_scatter_sqrt <- function(data, x_col, x_label, title, point_color) {
+  ggplot(data, aes(x = !!sym(x_col), y = SuicideRate_sqrt)) +
+    geom_point(color = point_color, alpha = 0.6) +
+    labs(title = title, x = x_label, y = "Square Root Suicide Rate (per 100,000)") +
+    theme_minimal()
+}
+
+box_region_sqrt <- ggplot(data_merged, aes(x = Region, y = SuicideRate_sqrt)) +
+  geom_boxplot(fill = "orchid", color = "black", alpha = 0.8) +
+  labs(
+    title = "Transformed Suicide Rates\nby Region",
+    x = "Region",
+    y = "Square Root Suicide Rate (per 100,000)"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 30, hjust = 1)
+  )
+
+scatter_gdp_sqrt <- plot_scatter_sqrt(data_merged, "GDP_per_Capita", "GDP per Capita (international dollars)", "Transformed Suicide Rates\nvs. GDP per Capita", "darkorange")
+scatter_gini_sqrt <- plot_scatter_sqrt(data_merged, "GINI_Index", "Gini Index", "Transformed Suicide Rates\nvs. Gini Index", "darkgreen")
+scatter_health_sqrt <- plot_scatter_sqrt(data_merged, "HealthSpendingPercent", "Health Spending (% of GDP)", "Transformed Suicide Rates\nvs. Health Spending Percentage", "steelblue")
+
+# Grid 1
+grid.arrange(box_region_sqrt, scatter_gdp_sqrt, ncol = 2)
+
+# Grid 2
+grid.arrange(scatter_gini_sqrt, scatter_health_sqrt, ncol = 2)
+
+```
+
+**Figure 3:** Relationship between square root-transformed suicide rates and key predictors, including region (top left plot), GDP per capita (top right plot), Gini index (bottom left plot), and health spending as a percentage of GDP (bottom right plot).
+
+\newpage
+
+Table 1 summarizes the distribution of key numerical variables across all countries and years in the dataset. On average, the suicide rate is approximately 11.292 per 100,000 people, with a standard deviation of 8.083, ranging from 0.085 to 53.058. GDP per capita has a wide range, with a mean of approximately $28,878, but a maximum exceeding $140,000, indicating substantial variation in income levels across countries. The Gini index, a measure of income inequality, has a mean value of approximately 0.369, suggesting moderate inequality overall, with relatively low standard deviation of 0.083. Health spending as a percentage of GDP averages around 7.05%, with values spanning from 1.718% to 18.813%, reflecting differing national priorities and capacities for healthcare investment.
+
+Figure 1 showcases patterns in each variable’s distribution. Suicide rates are right-skewed, with most values concentrated below 20 per 100,000 and a long tail extending toward higher rates. The regional distribution is imbalanced, with Europe contributing the largest number of observations, and the Eastern Mediterranean, South-East Asia, and Western Pacific contributing much fewer. GDP per capita is right-skewed, with a majority of countries clustered at lower income levels and a small number exhibiting extremely high values. Similarly, the Gini index is also right-skewed. In contrast, the health spending as a percentage of GDP is approximately symmetric and bell-shaped, peaking around 7 to 8%, though a few countries spend significantly more. 
+
+Figure 2 illustrates the relationships between suicide rates and key predictors. For region, Europe and Western Pacific regions show higher median suicide rates than other regions. For the numeric predictors, there appears to be a non-linear negative association between suicide rates and GDP per capita, Gini index, and health spending percentage. These curved patterns suggest that the assumptions of linearity and constant variance may not hold in a basic linear regression model. To address this, a square root transformation was applied to the suicide rate variable, as shown in Figure 3. The transformed plots exhibit more stabilized variance and improved linearity in the relationships, particularly with GDP per capita and Gini index. However, the transformed relationships still display some degree of curvature—especially for GDP per capita and health spending percentage—indicating that while the transformation improves model fit, it does not fully resolve non-linearity, likely due to skewness or the presence of outliers in the data.
+
+Building on the insights from the exploratory analysis, I proceeded to conduct regression analysis to formally assess the influence of each predictor on suicide rates as well as the performance of each model fit: 
+
+- Model 0: A baseline model using the untransformed suicide rates and the numerical predictors GDP per capita, Gini index, and health spending.
+
+- Model 1: A transformed model using the square root of suicide rates as the response variable, with the same predictors as Model 0.
+
+- Model 2: An extended model using the square root of suicide rates as the response variable, all the key predictors GDP per capita, Gini index, health spending, and region, but also incorporating interaction terms between each numerical predictor and region to account for regional variation in effects.
+
+This allowed for a more rigorous evaluation of the relationships between suicide rates and the predictors.
+
+
+\newpage
+
+```{r model0, include = FALSE}
+model_0 <- lm(SuicideRate ~ GDP_per_Capita + GINI_Index + HealthSpendingPercent, data = data_merged)
+
+```
+
+```{r model0-coefficients-table, echo = FALSE}
+# Extract model summary
+model_summary <- summary(model_0)
+
+# Build and format coefficient table
+coef_table <- as.data.frame(model_summary$coefficients) %>%
+  rownames_to_column(var = "Term") %>%
+  rename(
+    Estimate = Estimate,
+    `Std. Error` = `Std. Error`,
+    `t value` = `t value`,
+    `Pr(>|t|)` = `Pr(>|t|)`
+  ) %>%
+  mutate(
+    Term = case_when(
+      Term == "(Intercept)" ~ "Intercept",
+      Term == "GDP_per_Capita" ~ "GDP per Capita",
+      Term == "GINI_Index" ~ "Gini Index",
+      Term == "HealthSpendingPercent" ~ "Health Spending",
+      TRUE ~ Term  # fallback for other terms (e.g., interactions)
+    ),
+    across(-Term, ~ round(.x, 3))
+  )
+
+# Print as styled table
+kable(coef_table,
+      col.names = c("Term", "Estimate", "Std. Error", "t value", "t-Test p-value"),
+      booktabs = TRUE,
+      longtable = TRUE) %>%
+  kable_styling(
+    full_width = FALSE,
+    position = "center",
+    latex_options = c("striped", "hold_position", "repeat_header"),
+    stripe_color = "#f5f5f5",
+    font_size = 10
+  ) %>%
+  row_spec(0, bold = TRUE, extra_css = "border-bottom: 2px solid black;")
+
+```
+
+**Table 2.1:** Coefficient summary table for Model 0, which models untransformed suicide rates using GDP per capita, Gini index, and health spending as predictors. The table presents coefficient estimates, standard errors, t-values, and associated p-values for each term in the model.
+
+\
+
+```{r model0-performance-table, echo = FALSE}
+# Extract performance metrics
+rss <- sum(resid(model_0)^2)
+r2 <- model_summary$r.squared
+adj_r2 <- model_summary$adj.r.squared
+f_pval <- pf(model_summary$fstatistic[1],
+             model_summary$fstatistic[2],
+             model_summary$fstatistic[3],
+             lower.tail = FALSE)
+
+performance_table <- tibble(
+  Metric = c("Residual Sum of Squares (RSS)", "R-squared", "Adjusted R-squared", "Overall F-test p-value"),
+  Value = c(rss, r2, adj_r2, f_pval)
+) %>%
+  mutate(Value = round(Value, 3))
+
+# Print performance table
+kable(performance_table,
+      col.names = c("Metric", "Value"),
+      booktabs = TRUE,
+      longtable = TRUE) %>%
+  kable_styling(
+    full_width = FALSE,
+    position = "center",
+    latex_options = c("striped", "hold_position", "repeat_header"),
+    stripe_color = "#f5f5f5",
+    font_size = 10
+  ) %>%
+  row_spec(0, bold = TRUE, extra_css = "border-bottom: 2px solid black;")
+
+```
+
+**Table 2.2:** Performance metrics for Model 0, including $RSS$, $R^2$, adjusted $R^2$, and overall F-test p-value. These metrics reflect the model’s ability to explain variation in suicide rates across observations.
+
+\
+\
+
+```{r model1, include = FALSE}
+model_1 <- lm(SuicideRate_sqrt ~ GDP_per_Capita + GINI_Index + HealthSpendingPercent, data = data_merged)
+
+```
+
+```{r model1-coefficients-table, echo = FALSE}
+# Extract model 1 summary
+model1_summary <- summary(model_1)
+
+# Build and format coefficient table for model 1
+coef_table_model1 <- as.data.frame(model1_summary$coefficients) %>%
+  rownames_to_column(var = "Term") %>%
+  rename(
+    Estimate = Estimate,
+    `Std. Error` = `Std. Error`,
+    `t value` = `t value`,
+    `Pr(>|t|)` = `Pr(>|t|)`
+  ) %>%
+  mutate(
+    Term = case_when(
+      Term == "(Intercept)" ~ "Intercept",
+      Term == "GDP_per_Capita" ~ "GDP per Capita",
+      Term == "GINI_Index" ~ "Gini Index",
+      Term == "HealthSpendingPercent" ~ "Health Spending",
+      TRUE ~ Term  # Keep original if unmatched
+    ),
+    across(-Term, ~ round(.x, 3))
+  )
+
+# Print as styled table
+kable(coef_table_model1,
+      col.names = c("Term", "Estimate", "Std. Error", "t value", "t-Test p-value"),
+      booktabs = TRUE,
+      longtable = TRUE) %>%
+  kable_styling(
+    full_width = FALSE,
+    position = "center",
+    latex_options = c("striped", "hold_position", "repeat_header"),
+    stripe_color = "#f5f5f5",
+    font_size = 10
+  ) %>%
+  row_spec(0, bold = TRUE, extra_css = "border-bottom: 2px solid black;")
+
+```
+
+**Table 3.1:** Coefficient summary table for Model 1, which models square root-transformed suicide rates using GDP per capita, Gini index, and health spending as predictors. The table presents coefficient estimates, standard errors, t-values, and associated p-values for each term in the model.
+
+\
+
+```{r model1-performance-table, echo = FALSE}
+# Extract model 1 performance metrics
+rss_model1 <- sum(resid(model_1)^2)
+r2_model1 <- model1_summary$r.squared
+adj_r2_model1 <- model1_summary$adj.r.squared
+f_pval_model1 <- pf(model1_summary$fstatistic[1],
+                    model1_summary$fstatistic[2],
+                    model1_summary$fstatistic[3],
+                    lower.tail = FALSE)
+
+performance_table_model1 <- tibble(
+  Metric = c("Residual Sum of Squares (RSS)", "R-squared", "Adjusted R-squared", "Overall F-test p-value"),
+  Value = c(rss_model1, r2_model1, adj_r2_model1, f_pval_model1)
+) %>%
+  mutate(Value = round(Value, 3))
+
+# Print performance table
+kable(performance_table_model1,
+      col.names = c("Metric", "Value"),
+      booktabs = TRUE,
+      longtable = TRUE) %>%
+  kable_styling(
+    full_width = FALSE,
+    position = "center",
+    latex_options = c("striped", "hold_position", "repeat_header"),
+    stripe_color = "#f5f5f5",
+    font_size = 10
+  ) %>%
+  row_spec(0, bold = TRUE, extra_css = "border-bottom: 2px solid black;")
+
+```
+
+**Table 3.2:** Performance metrics for Model 1, including $RSS$, $R^2$, adjusted $R^2$, and overall F-test p-value. These metrics reflect the model’s ability to explain variation in the transformed response variable.
+
+\newpage
+
+```{r model2, include = FALSE}
+model_2 <- lm(SuicideRate_sqrt ~ (GDP_per_Capita + GINI_Index + HealthSpendingPercent)*Region, data = data_merged)
+
+```
+
+```{r model2-coefficients-table, echo = FALSE}
+# Extract model 2 summary
+model2_summary <- summary(model_2)
+
+# Clean up term labels
+coef_table_model2 <- as.data.frame(model2_summary$coefficients) %>%
+  rownames_to_column(var = "Term") %>%
+  mutate(
+    Term = Term %>%
+      str_replace_all("GDP_per_Capita", "GDP per Capita") %>%
+      str_replace_all("GINI_Index", "Gini Index") %>%
+      str_replace_all("HealthSpendingPercent", "Health Spending") %>%
+      str_replace_all("RegionAmericas", "Region Americas") %>%
+      str_replace_all("RegionEurope", "Region Europe") %>%
+      str_replace_all("RegionEastern Mediterranean", "Region Eastern Mediterranean") %>%
+      str_replace_all("RegionSouth-East Asia", "Region South-East Asia") %>%
+      str_replace_all("RegionWestern Pacific", "Region Western Pacific") %>%
+      str_replace_all("\\(Intercept\\)", "Intercept")
+  ) %>%
+  rename(
+    Estimate = Estimate,
+    `Std. Error` = `Std. Error`,
+    `t value` = `t value`,
+    `t-Test p-value` = `Pr(>|t|)`
+  ) %>%
+  mutate(across(-Term, ~ round(.x, 3)))
+
+# Print formatted table
+kable(coef_table_model2,
+      col.names = c("Term", "Estimate", "Std. Error", "t value", "t-Test p-value"),
+      booktabs = TRUE,
+      longtable = TRUE) %>%
+  kable_styling(
+    full_width = FALSE,
+    position = "center",
+    latex_options = c("striped", "hold_position", "repeat_header"),
+    stripe_color = "#f5f5f5",
+    font_size = 10
+  ) %>%
+  row_spec(0, bold = TRUE, extra_css = "border-bottom: 2px solid black;") %>%
+  column_spec(1, width = "4.5cm", latex_valign = "m")  # <- wrap long terms
+
+```
+
+**Table 4.1:** Coefficient summary table for Model 2, which models square root-transformed suicide rates using GDP per capita, Gini index, health spending, region, and interaction terms between region and numerical predictors. The table presents coefficient estimates, standard errors, t-values, and associated p-values for each term in the model.
+
+\newpage
+
+```{r model2-performance-table, echo = FALSE}
+# Extract performance metrics for model 2
+rss_model2 <- sum(resid(model_2)^2)
+r2_model2 <- model2_summary$r.squared
+adj_r2_model2 <- model2_summary$adj.r.squared
+f_pval_model2 <- pf(model2_summary$fstatistic[1],
+                    model2_summary$fstatistic[2],
+                    model2_summary$fstatistic[3],
+                    lower.tail = FALSE)
+
+performance_table_model2 <- tibble(
+  Metric = c("Residual Sum of Squares (RSS)", "R-squared", "Adjusted R-squared", "Overall F-test p-value"),
+  Value = c(rss_model2, r2_model2, adj_r2_model2, f_pval_model2)
+) %>%
+  mutate(Value = sprintf("%.3f", Value))  # Always show 3 decimal places
+
+# Print performance table
+kable(performance_table_model2,
+      col.names = c("Metric", "Value"),
+      booktabs = TRUE,
+      longtable = TRUE,
+      escape = FALSE) %>%
+  kable_styling(
+    full_width = FALSE,
+    position = "center",
+    latex_options = c("striped", "hold_position", "repeat_header"),
+    stripe_color = "#f5f5f5",
+    font_size = 10
+  ) %>%
+  row_spec(0, bold = TRUE, extra_css = "border-bottom: 2px solid black;")
+
+```
+
+**Table 4.2:** Performance metrics for Model 2, including $RSS$, $R^2$, adjusted $R^2$, and overall F-test p-value. These metrics reflect the model’s ability to explain variation in the transformed suicide rate while accounting for regional differences.
+
+\
+
+Model 0 modeled the untransformed suicide rate using GDP per capita, Gini index, and health spending as predictors. As shown in Table 2.1, GDP per capita and Gini index were statistically significant predictors (p-value < 0.05), while health spending was not (p-value > 0.05). The negative coefficient for Gini index suggested that higher income inequality was associated with lower suicide rates, although this relationship may have been confounded by other factors. Table 2.2 presented the performance metrics of Model 0, which indicated that the model had limited explanatory power, with an $R^2$ of 0.136 and an adjusted $R^2$ of 0.134. These results suggested that the linear model with untransformed response may not have fully captured the relationship between the predictors and suicide rates.
+
+Model 1 used the same set of predictors but modeled the square root of the suicide rate as the response variable, addressing the non-linearity observed during exploratory analysis. According to Table 3.1, all three predictors were statistically significant (p-value < 0.05), indicating stronger overall associations with the transformed response. As shown in Table 3.2, the model demonstrated a modest improvement in performance, with an $R^2$ of 0.175 and an adjusted $R^2$ of 0.174. Compared to Model 0, this improvement supported the use of the square root transformation and provided evidence of non-linear relationships between the predictors and the original suicide rate.
+
+Model 2 extended the previous models by incorporating interaction terms between regions and the three numerical predictors. The reference category for the region variable was Africa. Table 4.1 showed that several predictors and interactions were statistically significant based on t-test p-values. Among the main effects, Gini index and region indicators for Americas, Europe, and Western Pacific showed significant associations with the square root of suicide rates (p-value < 0.05). More importantly, multiple interaction terms were also significant, including the interaction between Gini index and Americas, Europe, and Western Pacific, as well as the interactions between health spending and Eastern Mediterranean, Europe, and Western Pacific (p-value < 0.05). These results indicated that the effects of Gini index and health spending on suicide rates were not constant across regions, but rather varied significantly depending on the geographic context.
+
+Table 4.2 showed that Model 2 offered a substantial improvement in model fit compared to Model 1. The $R^2$ value increased from 0.175 to 0.380, and the adjusted $R^2$ rose from 0.174 to 0.370, indicating that compared to Model 1, Model 2 explained a significantly greater portion of the variance in the transformed response. This improvement supported the inclusion of region-based interaction terms and highlighted the importance of accounting for geographic variation when modeling suicide rates.
+
+Overall, Model 2 reveals important quantitative findings. As shown in Table 4.1, a one unit increase in Gini index was associated with a 4.551 increase in the square root of suicide rate in Africa. However, this effect varied significantly across regions. In the Americas, the net effect was 4.551 - 7.475 = -2.924, suggesting a decrease in suicide rates with higher inequality. In Europe, the net effect was 4.551 - 10.736 = -6.185, indicating a more substantial negative association. The Western Pacific showed the most extreme net effect of 4.551 - 14.362 = -9.811, further highlighting how higher Gini index corresponded to markedly lower suicide rates in this region. For health spending, the main effect was 0.048 in Africa. In the Western Pacific, the interaction term was 0.110, leading to a net effect of 0.048 + 0.110 = 0.158, suggesting that a one percentage increase in health spending corresponded to approximately 0.158 unit increase in the square root of suicide rate. In contrast, the net effect in the Eastern Mediterranean was 0.048 - 0.215 = -0.167, and in Europe it was 0.048 - 0.141 = -0.093, both indicating negative associations between health spending and suicide rates. 
+
+\
+\
+
+# Conclusions and Summary
+
+This study aims to investigate the research questions: What are the key factors that influence suicide rates and how do they influence suicide rates? Do the relationships differ across regions around the world? 
+
+Based on the results from Model 2, the key factors that influenced suicide rates were income inequality and health spending, and their effects differed across world regions. The relationship between these predictors and suicide rates was non-linear and varied significantly depending on geographic context. For instance, higher income inequality was associated with higher suicide rates in Africa but with lower suicide rates in the Americas, Europe, and the Western Pacific. Similarly, increased health spending was linked to higher suicide rates in the Western Pacific but lower rates in the Eastern Mediterranean and Europe. These findings suggest that the effects of socioeconomic factors on suicide rates are complex and region-specific.
+
+On a broader level, these findings emphasize the need for regionally tailored suicide prevention policies. Global strategies that treat predictors like income inequality or healthcare investment as universally beneficial may miss important nuances. For example, in some regions, increasing health spending may not always correspond to reduced suicide rates, and addressing income inequality might have opposite effects depending on local social and cultural dynamics. This highlights the importance of understanding geographic variations and taking that into account when designing global mental health policies.
+
+However, this study is not without limitations. One important concern is the uneven distribution of data across regions, which may bias the estimates of region-specific effects. In particular, Europe had a significantly greater representation than other regions. Additionally, the final merged dataset included data from only 156 countries, which means that a number of countries were excluded due to incomplete data availability. As a result, the generalizability of these findings is limited, and caution should be exercised when interpreting results in a truly global context.
+
+In conclusion, this study identified income inequality and health spending as key region-specific drivers of suicide rates and demonstrated that their effects vary significantly depending on geographic context. The presence of non-linear and interactive effects reinforces the complexity of suicide-related outcomes and the necessity of localized approaches in global mental health efforts.
+
+\newpage
+
+## Citations
+
+Our World in Data. (2024, October 7). Gini Coefficient. <https://ourworldindata.org/grapher/economic-inequality-gini-index>
+
+Our World in Data. (2025, January 24). GDP per capita. <https://ourworldindata.org/grapher/gdp-per-capita-worldbank>
+
+World Health Organization. (2025, n.d.). The Global Health Observatory. <https://www.who.int/data/gho/info/gho-odata-api> 
