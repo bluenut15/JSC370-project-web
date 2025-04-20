@@ -1,0 +1,34 @@
+---
+title: "About"
+output: 
+    html_document:
+      css: style.css
+---
+
+\
+
+# Introduction
+
+Suicide is a pressing global public health issue, with profound social, economic, and psychological implications. Understanding the factors that contribute to suicide rates is essential for shaping effective prevention strategies and informing targeted interventions. While much prior research has explored economic and social influences on mental health outcomes, the relationship between macro-level indicators—such as income inequality, national wealth, and health system investment—and suicide rates remains complex and often varies by region.
+
+This, this study aims to investigate the research questions: What are the key factors that influence suicide rates and how do they influence suicide rates? Do the relationships differ across regions around the world?
+
+To explore these questions, I constructed a comprehensive dataset with a response (suicide rates) and main predictors (annual GDP per capita of countries, annual Gini index of countries, annual health spending percentage of countries, region of countries) by merging four different data sources. The suicide rates dataset, retrieved from the World Health Organization (WHO) API, provides annual crude suicide rates per 100,000 population for countries from 2000 to 2021. The health expenditure dataset, also obtained through the WHO API, contains information on health spending as a percentage of GDP across countries from 2000 to 2022 (“The Global Health Observatory”, 2025). Economic indicators were sourced from Our World in Data, which compiles data from the World Bank. The GDP per capita dataset includes annual per capita income in international dollars for various countries from 1990 to 2023 (“GDP per capita”, 2025), while the Gini index dataset provides yearly measures of income inequality for various countries from 1963 to 2023 (“Gini Coefficient”, 2024). By merging these four datasets based on region, country code, and year, I created a unified dataset that allows for a more thorough analysis of the factors associated with suicide rates. Exploratory figures and plots, as well as regression analysis, were employed to investigate the research questions. 
+
+\
+
+# Methods
+
+The data for this analysis was obtained from multiple sources using API queries and online databases. The suicide rates data was retrieved from the World Health Organization (WHO) API, providing annual crude suicide rates per 100,000 population for 185 countries around the world from 2000 to 2021. The API response was filtered to include only aggregate data for both sexes and all age groups. The health expenditure data was also extracted from the WHO API, containing annual health expenditure as a percentage of GDP for 194 countries from 2000 to 2022. In addition to the numerical variables of interest, the two WHO datasets also have information on the parent location, or region, of each country. The GDP per capita data was downloaded from Our World in Data, which sourced the dataset from the World Bank’s World Development Indicators in 2025. The dataset contains the annual GDP per capita of all countries worldwide from 1990 to 2023. The Gini index data was downloaded from Our World in Data, with data originally retrieved from the World Bank’s Poverty and Inequality Platform in 2024. This dataset provides the annual Gini coefficient for 170 countries from 1963 to 2023. 
+
+To clean the datasets appropriately, I first explored the four datasets to understand their structure and identify missing or abnormal values. Then, in the Gini index dataset, I dropped an irrelevant column containing only missing values. Afterward, I removed all rows with any missing values from all datasets to ensure completeness. After cleaning, I merged the four datasets using an inner join on common columns: country, year, and region. This ensured that only observations with complete information across all variables were retained. Lastly, I removed a duplicate country name column and renamed the remaining variables for GDP per capita, Gini index, and country name to improve readability in the final merged dataset.
+
+The data analysis began with creating a summary statistics table that presented the mean, median, standard deviation, minimum, and maximum values for key numerical variables (suicide rate, GDP per capita, Gini index, and health spending). This provided an initial overview of the central tendency and variability in the dataset. Next, I visualized the distributions of all key variables (suicide rate, GDP per capita, Gini index, health spending, and region) using histograms and bar plots, and examined the relationships between the predictors (GDP per capita, Gini index, health spending, and region) and suicide rates through scatterplots and box plots. During this exploratory phase, I observed evidence of a non-linear relationship between suicide rates and the numerical predictors, which motivated the transformation of the response variable. Specifically, I applied a square root transformation to suicide rates to improve linearity and model fit. To further investigate patterns and relationships, I employed linear regression analysis, which models the relationship between a dependent variable and one or more independent variables by fitting a linear equation to the observed data. I fitted and compared three linear regression models:
+
+- Model 0: A baseline model using the untransformed suicide rates and the numerical predictors GDP per capita, Gini index, and health spending.
+
+- Model 1: A transformed model using the square root of suicide rates as the response variable, with the same predictors as Model 0.
+
+- Model 2: An extended model using the square root of suicide rates as the response variable, all the key predictors GDP per capita, Gini index, health spending, and region, but also incorporating interaction terms between each numerical predictor and region to account for regional variation in effects.
+
+Predictor significance in each model was evaluated using t-test p-values, with the threshold being 0.05. The performance of each model was evaluated using RSS, R squared, adjusted R squared, and overall F-test p-values.

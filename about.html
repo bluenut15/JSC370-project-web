@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+<meta charset="utf-8" />
+<meta name="generator" content="pandoc" />
+<meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
+
+
+
+
+<title>About</title>
+
+<script src="site_libs/header-attrs-2.29/header-attrs.js"></script>
+<script src="site_libs/jquery-3.6.0/jquery-3.6.0.min.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link href="site_libs/bootstrap-3.3.5/css/cosmo.min.css" rel="stylesheet" />
+<script src="site_libs/bootstrap-3.3.5/js/bootstrap.min.js"></script>
+<script src="site_libs/bootstrap-3.3.5/shim/html5shiv.min.js"></script>
+<script src="site_libs/bootstrap-3.3.5/shim/respond.min.js"></script>
+<style>h1 {font-size: 34px;}
+       h1.title {font-size: 38px;}
+       h2 {font-size: 30px;}
+       h3 {font-size: 24px;}
+       h4 {font-size: 18px;}
+       h5 {font-size: 16px;}
+       h6 {font-size: 12px;}
+       code {color: inherit; background-color: rgba(0, 0, 0, 0.04);}
+       pre:not([class]) { background-color: white }</style>
+<script src="site_libs/navigation-1.1/tabsets.js"></script>
+<link href="site_libs/highlightjs-9.12.0/default.css" rel="stylesheet" />
+<script src="site_libs/highlightjs-9.12.0/highlight.js"></script>
+<link href="site_libs/font-awesome-6.5.2/css/all.min.css" rel="stylesheet" />
+<link href="site_libs/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet" />
+
+<style type="text/css">
+  code{white-space: pre-wrap;}
+  span.smallcaps{font-variant: small-caps;}
+  span.underline{text-decoration: underline;}
+  div.column{display: inline-block; vertical-align: top; width: 50%;}
+  div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+  ul.task-list{list-style: none;}
+    </style>
+
+<style type="text/css">code{white-space: pre;}</style>
+<script type="text/javascript">
+if (window.hljs) {
+  hljs.configure({languages: []});
+  hljs.initHighlightingOnLoad();
+  if (document.readyState && document.readyState === "complete") {
+    window.setTimeout(function() { hljs.initHighlighting(); }, 0);
+  }
+}
+</script>
+
+
+
+
+
+
+<link rel="stylesheet" href="style.css" type="text/css" />
+
+
+
+<style type = "text/css">
+.main-container {
+  max-width: 940px;
+  margin-left: auto;
+  margin-right: auto;
+}
+img {
+  max-width:100%;
+}
+.tabbed-pane {
+  padding-top: 12px;
+}
+.html-widget {
+  margin-bottom: 20px;
+}
+button.code-folding-btn:focus {
+  outline: none;
+}
+summary {
+  display: list-item;
+}
+details > summary > p:only-child {
+  display: inline;
+}
+pre code {
+  padding: 0;
+}
+</style>
+
+
+<style type="text/css">
+.dropdown-submenu {
+  position: relative;
+}
+.dropdown-submenu>.dropdown-menu {
+  top: 0;
+  left: 100%;
+  margin-top: -6px;
+  margin-left: -1px;
+  border-radius: 0 6px 6px 6px;
+}
+.dropdown-submenu:hover>.dropdown-menu {
+  display: block;
+}
+.dropdown-submenu>a:after {
+  display: block;
+  content: " ";
+  float: right;
+  width: 0;
+  height: 0;
+  border-color: transparent;
+  border-style: solid;
+  border-width: 5px 0 5px 5px;
+  border-left-color: #cccccc;
+  margin-top: 5px;
+  margin-right: -10px;
+}
+.dropdown-submenu:hover>a:after {
+  border-left-color: #adb5bd;
+}
+.dropdown-submenu.pull-left {
+  float: none;
+}
+.dropdown-submenu.pull-left>.dropdown-menu {
+  left: -100%;
+  margin-left: 10px;
+  border-radius: 6px 0 6px 6px;
+}
+</style>
+
+<script type="text/javascript">
+// manage active state of menu based on current page
+$(document).ready(function () {
+  // active menu anchor
+  href = window.location.pathname
+  href = href.substr(href.lastIndexOf('/') + 1)
+  if (href === "")
+    href = "index.html";
+  var menuAnchor = $('a[href="' + href + '"]');
+
+  // mark the anchor link active (and if it's in a dropdown, also mark that active)
+  var dropdown = menuAnchor.closest('li.dropdown');
+  if (window.bootstrap) { // Bootstrap 4+
+    menuAnchor.addClass('active');
+    dropdown.find('> .dropdown-toggle').addClass('active');
+  } else { // Bootstrap 3
+    menuAnchor.parent().addClass('active');
+    dropdown.addClass('active');
+  }
+
+  // Navbar adjustments
+  var navHeight = $(".navbar").first().height() + 15;
+  var style = document.createElement('style');
+  var pt = "padding-top: " + navHeight + "px; ";
+  var mt = "margin-top: -" + navHeight + "px; ";
+  var css = "";
+  // offset scroll position for anchor links (for fixed navbar)
+  for (var i = 1; i <= 6; i++) {
+    css += ".section h" + i + "{ " + pt + mt + "}\n";
+  }
+  style.innerHTML = "body {" + pt + "padding-bottom: 40px; }\n" + css;
+  document.head.appendChild(style);
+});
+</script>
+
+<!-- tabsets -->
+
+<style type="text/css">
+.tabset-dropdown > .nav-tabs {
+  display: inline-table;
+  max-height: 500px;
+  min-height: 44px;
+  overflow-y: auto;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.tabset-dropdown > .nav-tabs > li.active:before, .tabset-dropdown > .nav-tabs.nav-tabs-open:before {
+  content: "\e259";
+  font-family: 'Glyphicons Halflings';
+  display: inline-block;
+  padding: 10px;
+  border-right: 1px solid #ddd;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open > li.active:before {
+  content: "\e258";
+  font-family: 'Glyphicons Halflings';
+  border: none;
+}
+
+.tabset-dropdown > .nav-tabs > li.active {
+  display: block;
+}
+
+.tabset-dropdown > .nav-tabs > li > a,
+.tabset-dropdown > .nav-tabs > li > a:focus,
+.tabset-dropdown > .nav-tabs > li > a:hover {
+  border: none;
+  display: inline-block;
+  border-radius: 4px;
+  background-color: transparent;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open > li {
+  display: block;
+  float: none;
+}
+
+.tabset-dropdown > .nav-tabs > li {
+  display: none;
+}
+</style>
+
+<!-- code folding -->
+
+
+
+
+</head>
+
+<body>
+
+
+<div class="container-fluid main-container">
+
+
+
+
+<div class="navbar navbar-default  navbar-fixed-top" role="navigation">
+  <div class="container">
+    <div class="navbar-header">
+      <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-bs-toggle="collapse" data-target="#navbar" data-bs-target="#navbar">
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+      <a class="navbar-brand" href="index.html">Suicide Rates Analysis</a>
+    </div>
+    <div id="navbar" class="navbar-collapse collapse">
+      <ul class="nav navbar-nav">
+        <li>
+  <a href="about.html">About</a>
+</li>
+<li>
+  <a href="eda.html">EDA</a>
+</li>
+<li>
+  <a href="findings.html">Findings</a>
+</li>
+      </ul>
+      <ul class="nav navbar-nav navbar-right">
+        <li>
+  <a href="appendices.html">Appendices</a>
+</li>
+<li>
+  <a href="acknowledgement.html">Acknowledgement</a>
+</li>
+<li>
+  <a href="https://github.com/bluenut15/JSC370-project-web">
+    <span class="fa fa-github fa-lg"></span>
+     
+  </a>
+</li>
+      </ul>
+    </div><!--/.nav-collapse -->
+  </div><!--/.container -->
+</div><!--/.navbar -->
+
+<div id="header">
+
+
+
+<h1 class="title toc-ignore">About</h1>
+
+</div>
+
+
+<p><br />
+</p>
+<div id="introduction" class="section level1">
+<h1>Introduction</h1>
+<p>Suicide is a pressing global public health issue, with profound
+social, economic, and psychological implications. Understanding the
+factors that contribute to suicide rates is essential for shaping
+effective prevention strategies and informing targeted interventions.
+While much prior research has explored economic and social influences on
+mental health outcomes, the relationship between macro-level
+indicators—such as income inequality, national wealth, and health system
+investment—and suicide rates remains complex and often varies by
+region.</p>
+<p>This, this study aims to investigate the research questions: What are
+the key factors that influence suicide rates and how do they influence
+suicide rates? Do the relationships differ across regions around the
+world?</p>
+<p>To explore these questions, I constructed a comprehensive dataset
+with a response (suicide rates) and main predictors (annual GDP per
+capita of countries, annual Gini index of countries, annual health
+spending percentage of countries, region of countries) by merging four
+different data sources. The suicide rates dataset, retrieved from the
+World Health Organization (WHO) API, provides annual crude suicide rates
+per 100,000 population for countries from 2000 to 2021. The health
+expenditure dataset, also obtained through the WHO API, contains
+information on health spending as a percentage of GDP across countries
+from 2000 to 2022 (“The Global Health Observatory”, 2025). Economic
+indicators were sourced from Our World in Data, which compiles data from
+the World Bank. The GDP per capita dataset includes annual per capita
+income in international dollars for various countries from 1990 to 2023
+(“GDP per capita”, 2025), while the Gini index dataset provides yearly
+measures of income inequality for various countries from 1963 to 2023
+(“Gini Coefficient”, 2024). By merging these four datasets based on
+region, country code, and year, I created a unified dataset that allows
+for a more thorough analysis of the factors associated with suicide
+rates. Exploratory figures and plots, as well as regression analysis,
+were employed to investigate the research questions.</p>
+<p><br />
+</p>
+</div>
+<div id="methods" class="section level1">
+<h1>Methods</h1>
+<p>The data for this analysis was obtained from multiple sources using
+API queries and online databases. The suicide rates data was retrieved
+from the World Health Organization (WHO) API, providing annual crude
+suicide rates per 100,000 population for 185 countries around the world
+from 2000 to 2021. The API response was filtered to include only
+aggregate data for both sexes and all age groups. The health expenditure
+data was also extracted from the WHO API, containing annual health
+expenditure as a percentage of GDP for 194 countries from 2000 to 2022.
+In addition to the numerical variables of interest, the two WHO datasets
+also have information on the parent location, or region, of each
+country. The GDP per capita data was downloaded from Our World in Data,
+which sourced the dataset from the World Bank’s World Development
+Indicators in 2025. The dataset contains the annual GDP per capita of
+all countries worldwide from 1990 to 2023. The Gini index data was
+downloaded from Our World in Data, with data originally retrieved from
+the World Bank’s Poverty and Inequality Platform in 2024. This dataset
+provides the annual Gini coefficient for 170 countries from 1963 to
+2023.</p>
+<p>To clean the datasets appropriately, I first explored the four
+datasets to understand their structure and identify missing or abnormal
+values. Then, in the Gini index dataset, I dropped an irrelevant column
+containing only missing values. Afterward, I removed all rows with any
+missing values from all datasets to ensure completeness. After cleaning,
+I merged the four datasets using an inner join on common columns:
+country, year, and region. This ensured that only observations with
+complete information across all variables were retained. Lastly, I
+removed a duplicate country name column and renamed the remaining
+variables for GDP per capita, Gini index, and country name to improve
+readability in the final merged dataset.</p>
+<p>The data analysis began with creating a summary statistics table that
+presented the mean, median, standard deviation, minimum, and maximum
+values for key numerical variables (suicide rate, GDP per capita, Gini
+index, and health spending). This provided an initial overview of the
+central tendency and variability in the dataset. Next, I visualized the
+distributions of all key variables (suicide rate, GDP per capita, Gini
+index, health spending, and region) using histograms and bar plots, and
+examined the relationships between the predictors (GDP per capita, Gini
+index, health spending, and region) and suicide rates through
+scatterplots and box plots. During this exploratory phase, I observed
+evidence of a non-linear relationship between suicide rates and the
+numerical predictors, which motivated the transformation of the response
+variable. Specifically, I applied a square root transformation to
+suicide rates to improve linearity and model fit. To further investigate
+patterns and relationships, I employed linear regression analysis, which
+models the relationship between a dependent variable and one or more
+independent variables by fitting a linear equation to the observed data.
+I fitted and compared three linear regression models:</p>
+<ul>
+<li><p>Model 0: A baseline model using the untransformed suicide rates
+and the numerical predictors GDP per capita, Gini index, and health
+spending.</p></li>
+<li><p>Model 1: A transformed model using the square root of suicide
+rates as the response variable, with the same predictors as Model
+0.</p></li>
+<li><p>Model 2: An extended model using the square root of suicide rates
+as the response variable, all the key predictors GDP per capita, Gini
+index, health spending, and region, but also incorporating interaction
+terms between each numerical predictor and region to account for
+regional variation in effects.</p></li>
+</ul>
+<p>Predictor significance in each model was evaluated using t-test
+p-values, with the threshold being 0.05. The performance of each model
+was evaluated using RSS, R squared, adjusted R squared, and overall
+F-test p-values.</p>
+</div>
+
+
+
+
+</div>
+
+<script>
+
+// add bootstrap table styles to pandoc tables
+function bootstrapStylePandocTables() {
+  $('tr.odd').parent('tbody').parent('table').addClass('table table-condensed');
+}
+$(document).ready(function () {
+  bootstrapStylePandocTables();
+});
+
+
+</script>
+
+<!-- tabsets -->
+
+<script>
+$(document).ready(function () {
+  window.buildTabsets("TOC");
+});
+
+$(document).ready(function () {
+  $('.tabset-dropdown > .nav-tabs > li').click(function () {
+    $(this).parent().toggleClass('nav-tabs-open');
+  });
+});
+</script>
+
+<!-- code folding -->
+
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>

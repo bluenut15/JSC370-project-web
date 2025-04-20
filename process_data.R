@@ -106,3 +106,5 @@ data_merged <- data_merged %>%
     GDP_per_Capita = GDP.per.capita..PPP..constant.2021.international...,  # Rename GDP column
     GINI_Index = Gini.coefficient  # Rename GINI column
   )
+
+data_merged$SuicideRate_sqrt <- sqrt(data_merged$SuicideRate)
