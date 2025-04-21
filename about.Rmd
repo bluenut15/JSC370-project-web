@@ -7,7 +7,7 @@ output:
 
 \
 
-# Introduction
+## Introduction
 
 Suicide is a pressing global public health issue, with profound social, economic, and psychological implications. Understanding the factors that contribute to suicide rates is essential for shaping effective prevention strategies and informing targeted interventions. While much prior research has explored economic and social influences on mental health outcomes, the relationship between macro-level indicators—such as income inequality, national wealth, and health system investment—and suicide rates remains complex and often varies by region.
 
@@ -17,7 +17,7 @@ To explore these questions, I constructed a comprehensive dataset with a respons
 
 \
 
-# Methods
+## Methods
 
 The data for this analysis was obtained from multiple sources using API queries and online databases. The suicide rates data was retrieved from the World Health Organization (WHO) API, providing annual crude suicide rates per 100,000 population for 185 countries around the world from 2000 to 2021. The API response was filtered to include only aggregate data for both sexes and all age groups. The health expenditure data was also extracted from the WHO API, containing annual health expenditure as a percentage of GDP for 194 countries from 2000 to 2022. In addition to the numerical variables of interest, the two WHO datasets also have information on the parent location, or region, of each country. The GDP per capita data was downloaded from Our World in Data, which sourced the dataset from the World Bank’s World Development Indicators in 2025. The dataset contains the annual GDP per capita of all countries worldwide from 1990 to 2023. The Gini index data was downloaded from Our World in Data, with data originally retrieved from the World Bank’s Poverty and Inequality Platform in 2024. This dataset provides the annual Gini coefficient for 170 countries from 1963 to 2023. 
 
