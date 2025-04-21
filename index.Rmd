@@ -20,8 +20,10 @@ I conducted linear regression modeling using both raw and transformed suicide ra
 
 \
 
-## Code and Report
+## Dataset, Code, and Report
 
-📊 [View the full code and datasets on GitHub](https://github.com/bluenut15/JSC370-project-web/tree/main/final_report)
+📄 [Final dataset used for analysis](https://github.com/bluenut15/JSC370-project-web/blob/main/final_report/final_dataset.csv)
 
-📄 [View the data analysis report](https://github.com/bluenut15/JSC370-project-web/blob/main/final_report/final_report.pdf)
+📊 [Source code for data wrangling and analysis](https://github.com/bluenut15/JSC370-project-web/blob/main/final_report/final_report.Rmd)
+
+🔎 [Data analysis report](https://github.com/bluenut15/JSC370-project-web/blob/main/final_report/final_report.pdf)

@@ -2,6 +2,219 @@
 title: "Exploratory Data Analysis"
 output: 
     html_document:
+      toc: true
+      toc_float: true
       css: style.css
 ---
 
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE)
+library(dplyr)
+library(ggplot2)
+library(plotly)
+library(shiny)
+source("process_data.R")
+
+```
+
+\
+
+This Exploratory Data Analysis (EDA) page provides an interactive overview of the key variables used in the analysis of global suicide rates. You can explore how individual indicators are distributed and how they relate to suicide rates.
+
+\
+
+## Variable Distributions
+
+Distribution of key variables in the dataset, including that for suicide rates, region, GDP per capita, Gini index, and health spending as a percentage of GDP. 
+
+Select a variable from the tabs to view its distribution. Hover over bins or bars to see counts for each range or category.
+
+```{r}
+# Create individual ggplot objects with desired color styles
+p1 <- ggplot(data_merged, aes(x = SuicideRate)) +
+  geom_histogram(fill = "darkgrey", color = "white", bins = 30) +
+  labs(title = "Histogram of Suicide Rates", x = "Suicide Rate per 100,000 Population", y = "Count") +
+  theme_minimal()
+
+p2 <- ggplot(data_merged, aes(x = Region)) +
+  geom_bar(fill = "orchid") +
+  labs(title = "Bar Plot of Region", x = "Region", y = "Count") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(hjust = 1))
+
+p3 <- ggplot(data_merged, aes(x = GDP_per_Capita)) +
+  geom_histogram(fill = "darkorange", color = "white", bins = 30) +
+  labs(title = "Histogram of GDP per Capita", x = "GDP per Capita", y = "Count") +
+  theme_minimal()
+
+p4 <- ggplot(data_merged, aes(x = GINI_Index)) +
+  geom_histogram(fill = "darkgreen", color = "white", bins = 30) +
+  labs(title = "Histogram of Gini Index", x = "GINI Index", y = "Count") +
+  theme_minimal()
+
+p5 <- ggplot(data_merged, aes(x = HealthSpendingPercent)) +
+  geom_histogram(fill = "steelblue", color = "white", bins = 30) +
+  labs(title = "Histogram of Health Spending (% of GDP)", x = "Health Spending (% of GDP)", y = "Count") +
+  theme_minimal()
+
+```
+
+```{r}
+tabsetPanel(
+  tabPanel("Suicide Rate", plotly::layout(ggplotly(p1, tooltip = c("count")), hoverlabel = list(bgcolor = "white"))),
+  tabPanel("Region", plotly::layout(ggplotly(p2, tooltip = c("count")), hoverlabel = list(bgcolor = "white"))),
+  tabPanel("GDP per Capita", plotly::layout(ggplotly(p3, tooltip = c("count")), hoverlabel = list(bgcolor = "white"))),
+  tabPanel("GINI Index", plotly::layout(ggplotly(p4, tooltip = c("count")), hoverlabel = list(bgcolor = "white"))),
+  tabPanel("Health Spending Percent", plotly::layout(ggplotly(p5, tooltip = c("count")), hoverlabel = list(bgcolor = "white")))
+)
+
+```
+
+\
+
+## Relationship with Suicide Rates
+
+### Untransformed Suicide Rate
+
+Relationship between suicide rates and key predictors, including region, GDP per capita, Gini index, and health spending as a percentage of GDP. 
+
+Use the tabs to explore how each predictor relates to suicide rates. Hover over points or boxes to see country-level details or regional summary statistics.
+
+```{r}
+# 1. Boxplot by Region (Original)
+# Precompute summary statistics for tooltips
+region_stats <- data_merged %>%
+  group_by(Region) %>%
+  summarise(
+    Mean = round(mean(SuicideRate), 2),
+    Median = round(median(SuicideRate), 2),
+    Min = round(min(SuicideRate), 2),
+    Max = round(max(SuicideRate), 2)
+  )
+
+# Join the stats back to original data
+data_box <- left_join(data_merged, region_stats, by = "Region")
+
+# Use these in the tooltip
+box_orig <- ggplot(data_box, aes(x = Region, y = SuicideRate)) +
+  geom_boxplot(
+    aes(text = paste0(
+      "Region: ", Region,
+      "\nMean: ", Mean,
+      "\nMedian: ", Median,
+      "\nMin: ", Min,
+      "\nMax: ", Max
+    )),
+    fill = "orchid"
+  ) +
+  labs(title = "Suicide Rate by Region", x = "Region", y = "Suicide Rate") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(hjust = 1))
+
+
+# 2–4. Scatterplots for numeric predictors (Original)
+gdp_orig <- ggplot(data_merged, aes(x = GDP_per_Capita, y = SuicideRate)) +
+  geom_point(aes(text = paste0("Country: ", Country_Name, "\nYear: ", Year)),
+             color = "darkorange", alpha = 0.7) +
+  labs(title = "Suicide Rate vs GDP per Capita", x = "GDP per Capita", y = "Suicide Rate") +
+  theme_minimal()
+
+gini_orig <- ggplot(data_merged, aes(x = GINI_Index, y = SuicideRate)) +
+  geom_point(aes(text = paste0("Country: ", Country_Name, "\nYear: ", Year)),
+             color = "darkgreen", alpha = 0.7) +
+  labs(title = "Suicide Rate vs Gini Index", x = "GINI Index", y = "Suicide Rate") +
+  theme_minimal()
+
+health_orig <- ggplot(data_merged, aes(x = HealthSpendingPercent, y = SuicideRate)) +
+  geom_point(aes(text = paste0("Country: ", Country_Name, "\nYear: ", Year)),
+             color = "steelblue", alpha = 0.7) +
+  labs(title = "Suicide Rate vs Health Spending", x = "Health Spending (% of GDP)", y = "Suicide Rate") +
+  theme_minimal()
+```
+
+```{r}
+tabsetPanel(
+  tabPanel("Region", ggplotly(box_orig, tooltip = "text") %>%
+             layout(hoverlabel = list(bgcolor = "white", font = list(color = "black")))),
+  tabPanel("GDP per Capita", ggplotly(gdp_orig, tooltip = "text") %>%
+             layout(hoverlabel = list(bgcolor = "white", font = list(color = "black")))),
+  tabPanel("GINI Index", ggplotly(gini_orig, tooltip = "text") %>%
+             layout(hoverlabel = list(bgcolor = "white", font = list(color = "black")))),
+  tabPanel("Health Spending Percent", ggplotly(health_orig, tooltip = "text") %>%
+             layout(hoverlabel = list(bgcolor = "white", font = list(color = "black"))))
+)
+
+```
+
+\
+
+### Transformed Suicide Rate
+
+Relationship between square root transformed suicide rates and key predictors, including region, GDP per capita, Gini index, and health spending as a percentage of GDP. 
+
+Use the tabs to explore how each predictor relates to the square root of suicide rates. Hover over points or boxes to see country-level details or regional summary statistics.
+
+```{r}
+# 1. Boxplot by Region (Transformed)
+# For SuicideRate_sqrt
+region_stats_sqrt <- data_merged %>%
+  group_by(Region) %>%
+  summarise(
+    Mean = round(mean(SuicideRate_sqrt), 2),
+    Median = round(median(SuicideRate_sqrt), 2),
+    Min = round(min(SuicideRate_sqrt), 2),
+    Max = round(max(SuicideRate_sqrt), 2)
+  )
+
+data_box_sqrt <- left_join(data_merged, region_stats_sqrt, by = "Region")
+
+box_sqrt <- ggplot(data_box_sqrt, aes(x = Region, y = SuicideRate_sqrt)) +
+  geom_boxplot(
+    aes(text = paste0(
+      "Region: ", Region,
+      "\nMean: ", Mean,
+      "\nMedian: ", Median,
+      "\nMin: ", Min,
+      "\nMax: ", Max
+    )),
+    fill = "orchid"
+  ) +
+  labs(title = "Square Root Suicide Rate by Region", x = "Region", y = "Square Root Suicide Rate") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(hjust = 1))
+
+
+# 2–4. Scatterplots for numeric predictors (Transformed)
+gdp_sqrt <- ggplot(data_merged, aes(x = GDP_per_Capita, y = SuicideRate_sqrt)) +
+  geom_point(aes(text = paste0("Country: ", Country_Name, "\nYear: ", Year)),
+             color = "darkorange", alpha = 0.7) +
+  labs(title = "Square Root Suicide Rate vs GDP per Capita", x = "GDP per Capita", y = "Square Root Suicide Rate") +
+  theme_minimal()
+
+gini_sqrt <- ggplot(data_merged, aes(x = GINI_Index, y = SuicideRate_sqrt)) +
+  geom_point(aes(text = paste0("Country: ", Country_Name, "\nYear: ", Year)),
+             color = "darkgreen", alpha = 0.7) +
+  labs(title = "Square Root Suicide Rate vs GINI Index", x = "GINI Index", y = "Square Root Suicide Rate") +
+  theme_minimal()
+
+health_sqrt <- ggplot(data_merged, aes(x = HealthSpendingPercent, y = SuicideRate_sqrt)) +
+  geom_point(aes(text = paste0("Country: ", Country_Name, "\nYear: ", Year)),
+             color = "steelblue", alpha = 0.7) +
+  labs(title = "Square Root Suicide Rate vs Health Spending", x = "Health Spending (% of GDP)", y = "Square Root Suicide Rate") +
+  theme_minimal()
+
+```
+
+```{r}
+tabsetPanel(
+  tabPanel("Region", ggplotly(box_sqrt, tooltip = "text") %>%
+             layout(hoverlabel = list(bgcolor = "white", font = list(color = "black")))),
+  tabPanel("GDP per Capita", ggplotly(gdp_sqrt, tooltip = "text") %>%
+             layout(hoverlabel = list(bgcolor = "white", font = list(color = "black")))),
+  tabPanel("GINI Index", ggplotly(gini_sqrt, tooltip = "text") %>%
+             layout(hoverlabel = list(bgcolor = "white", font = list(color = "black")))),
+  tabPanel("Health Spending Percent", ggplotly(health_sqrt, tooltip = "text") %>%
+             layout(hoverlabel = list(bgcolor = "white", font = list(color = "black"))))
+)
+
+```
