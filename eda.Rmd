@@ -25,10 +25,6 @@ This Exploratory Data Analysis (EDA) page provides an interactive overview of th
 
 ## Variable Distributions
 
-Distribution of key variables in the dataset, including that for suicide rates, region, GDP per capita, Gini index, and health spending as a percentage of GDP. 
-
-Select a variable from the tabs to view its distribution. Hover over bins or bars to see counts for each range or category.
-
 ```{r}
 # Create individual ggplot objects with desired color styles
 p1 <- ggplot(data_merged, aes(x = SuicideRate)) +
@@ -70,15 +66,15 @@ tabsetPanel(
 
 ```
 
+**Figure 1:** Distribution of key variables in the dataset, including that for suicide rates, region, GDP per capita, Gini index, and health spending as a percentage of GDP.
+
+Figure 1 visualizes the distribution of a specific variable in the dataset. You can select a variable from the tabs to visualize its distribution and hover over bins or bars to see counts for each range or category.
+
 \
 
 ## Relationship with Suicide Rates
 
 ### Untransformed Suicide Rate
-
-Relationship between suicide rates and key predictors, including region, GDP per capita, Gini index, and health spending as a percentage of GDP. 
-
-Use the tabs to explore how each predictor relates to suicide rates. Hover over points or boxes to see country-level details or regional summary statistics.
 
 ```{r}
 # 1. Boxplot by Region (Original)
@@ -146,13 +142,13 @@ tabsetPanel(
 
 ```
 
+**Figure 2:** Relationship between suicide rates and key predictors, including region, GDP per capita, Gini index, and health spending as a percentage of GDP.
+
+Figure 2 shows the relationship between each predictor and suicide rates. You can use the tabs to explore how each predictor relates to suicide rates and hover over points or boxes to see country-level details or regional summary statistics.
+
 \
 
 ### Transformed Suicide Rate
-
-Relationship between square root transformed suicide rates and key predictors, including region, GDP per capita, Gini index, and health spending as a percentage of GDP. 
-
-Use the tabs to explore how each predictor relates to the square root of suicide rates. Hover over points or boxes to see country-level details or regional summary statistics.
 
 ```{r}
 # 1. Boxplot by Region (Transformed)
@@ -218,3 +214,7 @@ tabsetPanel(
 )
 
 ```
+
+**Figure 3:** Relationship between square root transformed suicide rates and key predictors, including region, GDP per capita, Gini index, and health spending as a percentage of GDP.
+
+Figure 3 shows the relationship between each predictor and *square root transformed* suicide rates. You can use the tabs to explore how each predictor relates to suicide rates and hover over points or boxes to see country-level details or regional summary statistics.
