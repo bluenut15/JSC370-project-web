@@ -118,6 +118,7 @@ Model 2 adds the `Region` variable and interaction terms to capture regional dif
 Note that Model 2 shows the best performance, with the lowest residual sum of squares and highest $R^2$ and adjusted $R^2$ values, justifying the inclusion of regional effects and interactions.</p>
 
 \
+\
 
 ## Final Model Summary
 
@@ -162,6 +163,50 @@ Note that Model 2 shows the best performance, with the lowest residual sum of sq
 </table>
 
 **Table 2:** Coefficient summary table for Model 2, which models square root-transformed suicide rates using GDP per capita, Gini index, health spending, region, and interaction terms between region and numerical predictors. The table presents coefficient estimates, standard errors, t-values, and associated p-values for each term in the model.
+
+\
+
+```{r model2-coef-plot-interactive, echo=FALSE, warning=FALSE, message=FALSE}
+library(ggplot2)
+library(dplyr)
+library(broom)
+library(plotly)
+
+# Prepare tidy coefficient data with 95% CI
+coef_data <- tidy(model_2, conf.int = TRUE, conf.level = 0.95) %>%
+  filter(term != "(Intercept)") %>%
+  mutate(term = gsub(":", " × ", term)) %>%
+  mutate(term = gsub("GDP_per_Capita", "GDP per Capita", term),
+         term = gsub("GINI_Index", "Gini Index", term),
+         term = gsub("HealthSpendingPercent", "Health Spending", term),
+         term = gsub("Region", "Region ", term)) %>%
+  mutate(
+    tooltip = paste0(
+      "<b>", term, "</b><br>",
+      "Estimate: ", round(estimate, 3), "<br>",
+      "95% CI: [", round(conf.low, 3), ", ", round(conf.high, 3), "]"
+    )
+  ) %>%
+  arrange(estimate)
+
+# Base ggplot
+p <- ggplot(coef_data, aes(x = reorder(term, estimate), y = estimate, text = tooltip)) +
+  geom_point() +
+  geom_errorbar(aes(ymin = conf.low, ymax = conf.high), width = 0.25) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "gray40") +
+  coord_flip() +
+  labs(x = NULL, y = "Coefficient Estimate",
+       title = "Model 2 Coefficient Estimates") +
+  theme_minimal(base_size = 12)
+
+# Convert to interactive plotly
+ggplotly(p, tooltip = "text")
+
+```
+
+**Figure 4:** Coefficient estimates with 95% confidence intervals for Model 2.
+
+\
 
 Among the main effects in Model 2, Gini index and region indicators for Americas, Europe, and Western Pacific showed significant associations with the square root of suicide rates (p-value < 0.05). More importantly, multiple interaction terms were also significant, including the interaction between Gini index and Americas, Europe, and Western Pacific, as well as the interactions between health spending and Eastern Mediterranean, Europe, and Western Pacific (p-value < 0.05). These results indicated that the effects of Gini index and health spending on suicide rates were not constant across regions, but rather varied significantly depending on the geographic context.
 
@@ -219,5 +264,7 @@ Among the main effects in Model 2, Gini index and region indicators for Americas
 </table>
 
 **Table 3:** Summary table of the net effect of each numerical predictor on the square root of suicide rate across world regions. Highlighted cells indicate statistically significant effects (p-value < 0.05) based on Model 2's coefficient estimates and interaction terms.
+
+\
 
 As shown in Table 3, a one unit increase in Gini index was associated with a 4.551 increase in the square root of suicide rate in Africa. However, this effect varied significantly across regions. In the Americas, the net effect was -2.924, suggesting a decrease in suicide rates with higher inequality. In Europe, the net effect was -6.185, indicating a more substantial negative association. The Western Pacific showed the most extreme net effect of -9.811, further highlighting how higher Gini index corresponded to markedly lower suicide rates in this region. For health spending, the main effect was 0.048 in Africa. In the Western Pacific, the interaction term was 0.110, leading to a net effect of 0.158, suggesting that a one percentage increase in health spending corresponded to approximately 0.158 unit increase in the square root of suicide rate. In contrast, the net effect in the Eastern Mediterranean was -0.167, and in Europe it was -0.093, both indicating negative associations between health spending and suicide rates. 

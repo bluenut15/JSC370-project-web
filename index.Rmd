@@ -22,6 +22,7 @@ To explore these questions, I merged four datasets — including suicide statist
 I conducted linear regression modeling using both raw and transformed suicide rates as the response, also incorporating interaction terms between region and predictors to capture geographic nuances.
 
 \
+\
 
 ## Dataset, Code, and Report
 
