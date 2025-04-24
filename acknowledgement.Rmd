@@ -3,5 +3,20 @@ title: "Acknowledgement"
 output: 
     html_document:
       css: style.css
+      includes: 
+        after_body: footer.html
 ---
 
+This website is created as a final deliverable for JSC370H1 2025 Winter at the University of Toronto. Here I would like to express my sincere gratitude to Professor Meredith Franklin for this valuable opportunity and her suggestions towards completing this project.
+
+\
+
+## References
+
+Our World in Data. (2024, October 7). Gini Coefficient. <https://ourworldindata.org/grapher/economic-inequality-gini-index>
+
+Our World in Data. (2025, January 24). GDP per capita. <https://ourworldindata.org/grapher/gdp-per-capita-worldbank>
+
+World Health Organization. (2025, n.d.). The Global Health Observatory. <https://www.who.int/data/gho/info/gho-odata-api> 
+
+\

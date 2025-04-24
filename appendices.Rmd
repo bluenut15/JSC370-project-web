@@ -5,3 +5,46 @@ output:
       css: style.css
 ---
 
+<table style="width:100%; border-collapse:collapse; margin-bottom: 1em;">
+  <thead>
+    <tr style="border-bottom:2px solid #ccc;">
+      <th style="text-align:left; width:30%;">Variable</th>
+      <th style="text-align:left; width:70%;">Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr style="border-bottom:1px solid #ddd;">
+      <td><b>Suicide Rate</b></td>
+      <td>Crude annual suicide rate per 100,000 population, provided by the WHO. </td>
+    </tr>
+    <tr style="border-bottom:1px solid #ddd;">
+      <td><b>Region</b></td>
+      <td>
+        Categorical variable indicating the WHO-assigned region for each country. The six regions are:
+        <ul style="margin-top:0.3em; padding-left:1.2em;">
+          <li>Africa</li>
+          <li>Americas</li>
+          <li>Eastern Mediterranean</li>
+          <li>Europe</li>
+          <li>South-East Asia</li>
+          <li>Western Pacific</li>
+        </ul>
+        A full list of countries in each region can be found <a href="https://www.who.int/countries" target="_blank">here on the WHO website</a>.
+      </td>
+    </tr>
+    <tr style="border-bottom:1px solid #ddd;">
+      <td><b>GDP per Capita</b></td>
+      <td>Annual GDP per capita in international dollars, a measure of a country's economic output divided by its population. Obtained from Our World in Data. </td>
+    </tr>
+    <tr style="border-bottom:1px solid #ddd;">
+      <td><b>Gini Index</b></td>
+      <td>Annual Gini coefficient measuring income inequality in each country. The value range is [0, 1], with 0 representing perfect equality (everyone has the same income) and 1 representing perfect inequality (one person has all the income). Obtained from Our World in Data. </td>
+    </tr>
+    <tr style="border-bottom:1px solid #ddd;">
+      <td><b>Health Spending (% of GDP)</b></td>
+      <td>Annual health expenditure as a percentage of GDP, provided by the WHO.</td>
+    </tr>
+  </tbody>
+</table>
+
+
