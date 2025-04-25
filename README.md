@@ -12,7 +12,7 @@ This project seeks to answer:
 
 To explore these questions, I merged four datasets — including suicide statistics, GDP per capita, Gini index, and health spending — to form a comprehensive dataset covering 156 countries from 2000 to 2021. Using exploratory data analysis and regression models, I examined both linear and interaction effects of predictors like income inequality and healthcare investment on suicide rates.
 
-I conducted linear regression modeling using both raw and transformed suicide rates as the response, also incorporating interaction terms between region and predictors to capture geographic nuances.\
+I conducted linear regression modeling using both raw and transformed suicide rates as the response, also incorporating interaction terms between region and predictors to capture geographic nuances.
 
 ## Dataset, Code, and Report
 
