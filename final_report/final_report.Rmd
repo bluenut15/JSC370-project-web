@@ -292,7 +292,7 @@ p2 <- ggplot(data_merged, aes(x = Region)) +
 # 3. Histogram: GDP per Capita
 p3 <- ggplot(data_merged, aes(x = GDP_per_Capita)) +
   geom_histogram(fill = "darkorange", color = "white", bins = 30) +
-  labs(title = "Histogram of GDP per Capita", x = "GDP per Capita", y = "Count") +
+  labs(title = "Histogram of GDP per Capita", x = "GDP per Capita (international dollars)", y = "Count") +
   theme_minimal()
 
 # 4. Histogram: Gini Index
@@ -304,7 +304,7 @@ p4 <- ggplot(data_merged, aes(x = GINI_Index)) +
 # 5. Histogram: Health Spending
 p5 <- ggplot(data_merged, aes(x = HealthSpendingPercent)) +
   geom_histogram(fill = "steelblue", color = "white", bins = 30) +
-  labs(title = "Histogram of Health Spending\n(% of GDP)", x = "Health Spending", y = "Count") +
+  labs(title = "Histogram of Health Spending", x = "Health Spending (% of GDP)", y = "Count") +
   theme_minimal()
 
 # Grid 1: Suicide Rate and Year
@@ -327,9 +327,12 @@ grid.arrange(p4, p5, ncol = 2)
 plot_scatter <- function(data, x_col, x_label, title, point_color) {
   ggplot(data, aes(x = !!sym(x_col), y = SuicideRate)) +
     geom_point(color = point_color, alpha = 0.6) +
+    geom_smooth(method = "lm", se = TRUE, color = "darkred", linetype = "solid", fill = "darkred", alpha = 0.1) +
+    geom_smooth(method = "loess", se = TRUE, color = "black", linetype = "dashed", fill = "black", alpha = 0.1) +
     labs(title = title, x = x_label, y = "Suicide Rate (per 100,000)") +
     theme_minimal()
 }
+
 
 # Generate plots with different colors
 box_region <- ggplot(data_merged, aes(x = Region, y = SuicideRate)) +
@@ -355,7 +358,7 @@ grid.arrange(box_region, scatter_gdp, ncol = 2)
 grid.arrange(scatter_gini, scatter_health, ncol = 2)
 ```
 
-**Figure 2:** Relationship between suicide rates and key predictors, including region (top left plot), GDP per capita (top right plot), Gini index (bottom left plot), and health spending as a percentage of GDP (bottom right plot). 
+**Figure 2:** Relationship between suicide rates and key predictors, including region (top left plot), GDP per capita (top right plot), Gini index (bottom left plot), and health spending as a percentage of GDP (bottom right plot). The scatter plots display both a line of best fit (red solid) and curve of best fit (black dashed), along with their 95% confidence intervals. 
 
 \newpage
 
@@ -366,6 +369,8 @@ data_merged$SuicideRate_sqrt <- sqrt(data_merged$SuicideRate)
 plot_scatter_sqrt <- function(data, x_col, x_label, title, point_color) {
   ggplot(data, aes(x = !!sym(x_col), y = SuicideRate_sqrt)) +
     geom_point(color = point_color, alpha = 0.6) +
+    geom_smooth(method = "lm", se = TRUE, color = "darkred", linetype = "solid", fill = "darkred", alpha = 0.1) +
+    geom_smooth(method = "loess", se = TRUE, color = "black", linetype = "dashed", fill = "black", alpha = 0.1) +
     labs(title = title, x = x_label, y = "Square Root Suicide Rate (per 100,000)") +
     theme_minimal()
 }
@@ -394,7 +399,7 @@ grid.arrange(scatter_gini_sqrt, scatter_health_sqrt, ncol = 2)
 
 ```
 
-**Figure 3:** Relationship between square root-transformed suicide rates and key predictors, including region (top left plot), GDP per capita (top right plot), Gini index (bottom left plot), and health spending as a percentage of GDP (bottom right plot).
+**Figure 3:** Relationship between square root-transformed suicide rates and key predictors, including region (top left plot), GDP per capita (top right plot), Gini index (bottom left plot), and health spending as a percentage of GDP (bottom right plot). The scatter plots display both a line of best fit (red solid) and curve of best fit (black dashed), along with their 95% confidence intervals. 
 
 \newpage
 
